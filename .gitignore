@@ -3,3 +3,11 @@ node_modules/
 .env
 *.log
 .vscode/
+
+# Build and Binary
+*.epub
+*.pdf
+
+# Internal Documentation & Archives
+_Archive/
+_Legacy/
