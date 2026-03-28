@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eros — Generative Art Engine</title>
+  <meta name="description" content="Eros: A multi-method generative art engine. Ottoman geometry meets abstract art.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────── -->
+<header id="app-header">
+  <div class="header-brand">
+    <span class="brand-icon">🔥</span>
+    <div>
+      <h1>Eros</h1>
+      <span class="brand-sub">GENERATIVE ART ENGINE</span>
+    </div>
+  </div>
+  <nav id="main-nav">
+    <button class="tab-btn active" data-tab="canvas">Canvas</button>
+    <button class="tab-btn" data-tab="concept">Concept</button>
+    <button class="tab-btn" data-tab="gallery">Gallery</button>
+  </nav>
+</header>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ── CANVAS TAB ──────────────────────────────────── -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div id="tab-canvas" class="tab-content active">
+
+  <!-- LEFT: Method + Params -->
+  <aside id="sidebar">
+    <div id="method-selector">
+      <h2 class="sidebar-title">Method</h2>
+      <div id="method-cards" class="method-cards"></div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <h2 class="sidebar-title">Field Parameters</h2>
+    <div id="param-container"></div>
+    <div class="param-actions">
+      <button id="btn-save" class="btn-primary">💾 Save to Gallery</button>
+      <div class="btn-row">
+        <button id="btn-export" class="btn-secondary">↓ PNG</button>
+        <button id="btn-new-seed" class="btn-secondary">🎲 Seed</button>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Animate Section -->
+    <div class="anim-section">
+      <div id="anim-toggle" class="anim-toggle">
+        <span>⏵ Animate</span><span class="anim-chevron">›</span>
+      </div>
+      <div id="anim-panel" class="anim-panel hidden">
+
+        <div class="anim-ctrl-row">
+          <label>Dur <span id="val-anim-dur" class="param-val">8</span>s</label>
+          <input type="range" id="anim-duration" min="2" max="60" value="8">
+        </div>
+        <div class="anim-ctrl-row">
+          <label>FPS</label>
+          <select id="anim-fps">
+            <option value="6">6</option>
+            <option value="12" selected>12</option>
+            <option value="24">24</option>
+          </select>
+        </div>
+        <div class="anim-ctrl-row">
+          <label>Mode</label>
+          <select id="anim-mode">
+            <option value="forward">A → B</option>
+            <option value="backward">B → A</option>
+            <option value="pingpong">A → B → A</option>
+          </select>
+        </div>
+
+        <div class="sidebar-divider" style="margin:6px 0"></div>
+        <p class="panel-hint" style="padding:0 2px">Check params · drag amplitude</p>
+        <div id="anim-params"></div>
+
+        <div id="anim-progress" class="anim-progress hidden">
+          <div id="anim-progress-bar" class="anim-progress-bar"></div>
+          <span id="anim-progress-label" class="anim-progress-label">0 / 0</span>
+        </div>
+
+        <div class="btn-row" style="margin-top:8px">
+          <button id="btn-anim-preview" class="btn-secondary">▶ Preview</button>
+          <button id="btn-anim-record"  class="btn-primary">⏺ Record</button>
+        </div>
+
+      </div>
+    </div>
+  </aside>
+
+  <!-- CENTRE: Canvas -->
+  <main id="canvas-area">
+    <canvas id="eros-canvas"></canvas>
+    <div id="render-info">composing…</div>
+    <div id="canvas-toolbar">
+      <button id="btn-fullscreen" class="btn-icon">⛶</button>
+      <!-- Palette toggle -->
+      <button id="btn-palette-toggle" class="btn-icon palette-toggle-btn" title="Toggle Palette Panel">
+        <span class="toggle-icon">◧</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- RIGHT: Palette Panel (collapsible) -->
+  <aside id="palette-panel" class="palette-panel expanded">
+
+    <!-- Collapse button -->
+    <button id="palette-collapse-btn" class="palette-collapse-btn" title="Collapse palette">›</button>
+
+    <div class="palette-panel-inner">
+      <h2 class="sidebar-title">Palette</h2>
+
+      <!-- Active palette indicator -->
+      <div id="active-palette-bar" class="active-palette-bar">
+        <div id="active-palette-swatches" class="active-swatches"></div>
+        <span id="active-palette-name" class="active-palette-name">—</span>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Method palettes — click to apply -->
+      <h3 class="panel-sub-title">Method Palettes</h3>
+      <p class="panel-hint">Click any palette to apply instantly.</p>
+      <div id="panel-curated-palettes" class="panel-palette-list"></div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Harmony builder -->
+      <h3 class="panel-sub-title">Harmony Builder</h3>
+      <div class="harmony-mini">
+        <div class="harmony-row">
+          <label>Mode</label>
+          <select id="harmony-mode">
+            <option value="analogous">Analogous</option>
+            <option value="complementary">Complementary</option>
+            <option value="triadic">Triadic</option>
+            <option value="split">Split-Comp</option>
+            <option value="tetradic">Tetradic</option>
+          </select>
+        </div>
+        <div class="harmony-row">
+          <label>H° <span id="val-base-hue" class="param-val">195</span></label>
+          <input type="range" id="harmony-hue" min="0" max="360" value="195">
+        </div>
+        <div class="harmony-row">
+          <label>S% <span id="val-base-sat" class="param-val">60</span></label>
+          <input type="range" id="harmony-sat" min="0" max="100" value="60">
+        </div>
+        <div class="harmony-row">
+          <label>L% <span id="val-base-lit" class="param-val">45</span></label>
+          <input type="range" id="harmony-lit" min="0" max="100" value="45">
+        </div>
+        <div id="harmony-swatches" class="swatch-row"></div>
+        <button id="btn-apply-harmony" class="btn-primary" style="width:100%;margin-top:6px">Apply Harmony</button>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Image extraction -->
+      <h3 class="panel-sub-title">Extract from Image</h3>
+      <div id="image-drop-zone" class="drop-zone">
+        <p>Drop image or click</p>
+        <input type="file" id="image-upload" accept="image/*" hidden>
+      </div>
+      <div id="extracted-swatches" class="swatch-row"></div>
+      <button id="btn-apply-extracted" class="btn-secondary" style="width:100%;margin-top:4px;display:none">Apply Extracted</button>
+    </div>
+  </aside>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ── CONCEPT TAB ─────────────────────────────────── -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div id="tab-concept" class="tab-content">
+  <div class="concept-content">
+    <section class="concept-section">
+      <h3>Narrative</h3>
+      <p id="concept-narrative" class="concept-text"></p>
+    </section>
+    <section class="concept-section">
+      <h3>Field Equation</h3>
+      <pre id="concept-equation" class="concept-code"></pre>
+    </section>
+    <section class="concept-section">
+      <h3>Parameters</h3>
+      <pre id="concept-params" class="concept-code"></pre>
+    </section>
+    <section class="concept-section">
+      <h3>Metadata</h3>
+      <div id="concept-meta" class="concept-meta-grid"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ── GALLERY TAB ─────────────────────────────────── -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div id="tab-gallery" class="tab-content">
+  <div class="gallery-content">
+    <div id="gallery-grid" class="gallery-grid"></div>
+    <p id="gallery-empty" class="gallery-empty">No compositions saved yet.</p>
+  </div>
+</div>
+
+<!-- Scripts: core first, then methods, then UI -->
+<script src="eros-core.js"></script>
+<script src="methods/muqarnas.js"></script>
+<script src="methods/miniature.js"></script>
+<script src="methods/centaur.js"></script>
+<script src="methods/flow.js"></script>
+<script src="methods/edifice.js"></script>
+<script src="methods/inversion.js"></script>
+<script src="methods/manifold.js"></script>
+<script src="eros.js"></script>
+</body>
+</html>
