@@ -49,10 +49,12 @@ MethodRegistry.register({
   // Parameters MUST start from simple foundational iterations (low grid sizes, fast physics)
   params: [
     { key: 'seed', type: 'number', label: 'Hash Seed', default: 834, min: 1, max: 999999, category: 'Method' },
-    
+    { key: 'canvasMargin', type: 'range', label: 'Canvas Margin %', default: 6, min: 0, max: 20, precision: 0, category: 'Method' },
+
     // Level 1: The Pack
     { key: 'gridCols', type: 'range', label: 'Cell Area (Cols)', default: 22, min: 4, max: 50, precision: 0, category: 'Method' },
     { key: 'fillAlgo', type: 'select', label: 'Fill Style', default: 'Random Walk', options: ['Random Walk', 'Random Box', 'Ns'], category: 'Method' },
+    { key: 'gridOutline', type: 'range', label: 'Grid Outline Thk', default: 2.0, min: 0.0, max: 10.0, precision: 1, category: 'Render' },
 
     // Level 2/3: The Enclosure & Forces
     { key: 'boundStyle', type: 'select', label: 'Style (Enclosure)', default: 'Modern (Sticky)', options: ['Modern (Sticky)', 'Explosive (Bounce)'], category: 'Physics' },
@@ -88,7 +90,7 @@ MethodRegistry.register({
     const prng = new PRNG(params.seed);
     const startT = performance.now();
 
-    const padding = Math.min(W, H) * 0.06;
+    const padding = Math.min(W, H) * (params.canvasMargin / 100);
     const drawW = W - padding * 2;
     const drawH = H - padding * 2;
 
@@ -135,6 +137,15 @@ MethodRegistry.register({
       const cloth = this._buildClothMesh(rect, params.texture, prng);
       if (cloth.nodes.length === 0) continue;
 
+      // Draw Grid Outline (The 2D Web boundaries)
+      if (params.gridOutline > 0) {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = `hsl(${col.h}, ${col.s}%, ${Math.max(10, col.l - 20)}%)`; 
+        ctx.lineWidth = params.gridOutline;
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.globalCompositeOperation = 'multiply';
+      }
+
       // Filter local explosions
       const localExplosions = explosionPool.filter(e => {
          const dx = rect.x + rect.w/2 - e.x;
@@ -146,8 +157,9 @@ MethodRegistry.register({
       this._simulateClothPhysics(cloth, rect, localExplosions, params.boundStyle);
 
       // Render Vectors with Displacement Warp
+      ctx.lineWidth = params.lineWeight;
       ctx.strokeStyle = `hsla(${col.h}, ${col.s}%, ${col.l}%, ${params.lineAlpha})`;
-      this._renderMesh(ctx, cloth, W/2, H/2, params.displacement);
+      this._renderMesh(ctx, cloth, W/2, H/2, params.displacement, rect);
 
       totalNodes += cloth.nodes.length;
     }
@@ -319,13 +331,13 @@ MethodRegistry.register({
         
         // Horizontal Links (Applies to Lattice, Hatched, Sqribble)
         if (c < cols) {
-           links.push({ n1: node, n2: grid[r][c+1], dist: rect.w/cols }); 
+           links.push({ n1: node, n2: grid[r][c+1], dist: rect.w/cols, isHorizontal: true }); 
         }
 
         // Vertical && Diagonal Links (Lattice / Sqribble ONLY)
         if (textureMode === 'Lattice' || textureMode === 'Sqribble') {
            if (r < rows) {
-              links.push({ n1: node, n2: grid[r+1][c], dist: rect.h/rows }); // V
+              links.push({ n1: node, n2: grid[r+1][c], dist: rect.h/rows, isVertical: true }); // V
            }
            if (r < rows && c < cols) {
               links.push({ n1: node, n2: grid[r+1][c+1], dist: Math.sqrt(Math.pow(rect.w/cols,2) + Math.pow(rect.h/rows,2)) }); // Diag
@@ -380,6 +392,16 @@ MethodRegistry.register({
            
            link.n1.x += ox; link.n1.y += oy;
            link.n2.x -= ox; link.n2.y -= oy;
+
+           // Anti-tangling constraint: Ensure NO INTERSECTION of the internal web
+           if (link.isHorizontal && link.n1.x > link.n2.x - 0.1) {
+               let mid = (link.n1.x + link.n2.x) / 2;
+               link.n1.x = mid - 0.05; link.n2.x = mid + 0.05;
+           }
+           if (link.isVertical && link.n1.y > link.n2.y - 0.1) {
+               let mid = (link.n1.y + link.n2.y) / 2;
+               link.n1.y = mid - 0.05; link.n2.y = mid + 0.05;
+           }
         }
       }
 
@@ -434,12 +456,18 @@ MethodRegistry.register({
      return { x, y };
   },
 
-  _renderMesh(ctx, cloth, cx, cy, displacementType) {
+  _renderMesh(ctx, cloth, cx, cy, displacementType, rect) {
     ctx.beginPath();
     for (const link of cloth.links) {
        let p1 = this._displacePoint(link.n1.x, link.n1.y, cx, cy, displacementType);
        let p2 = this._displacePoint(link.n2.x, link.n2.y, cx, cy, displacementType);
        
+       // Absolute Clamp to prevent overlap between adjacent enclosures
+       p1.x = Math.max(rect.x, Math.min(rect.x + rect.w, p1.x));
+       p1.y = Math.max(rect.y, Math.min(rect.y + rect.h, p1.y));
+       p2.x = Math.max(rect.x, Math.min(rect.x + rect.w, p2.x));
+       p2.y = Math.max(rect.y, Math.min(rect.y + rect.h, p2.y));
+
        ctx.moveTo(p1.x, p1.y);
        ctx.lineTo(p2.x, p2.y);
     }
