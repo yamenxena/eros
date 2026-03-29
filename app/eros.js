@@ -476,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHarmony();
 });
 
-// ── Method Selector ───────────────────────────────────────────
+// ── Method Selector (Category-Grouped) ────────────────────────
 function buildMethodSelector(methodTypeFilter = '2d') {
   const container = document.getElementById('method-cards');
   container.innerHTML = '';
@@ -484,36 +484,95 @@ function buildMethodSelector(methodTypeFilter = '2d') {
   const methods = MethodRegistry.list().filter(m => {
     const is3D = m.type === '3d';
     return methodTypeFilter === '3d' ? is3D : !is3D;
-  }).sort((a, b) => {
-    // Force Edifice and Xylem to the top
-    const getPriority = (id) => {
-      if (id === 'edifice') return 1;
-      if (id === 'xylem') return 2;
-      return 99; // Everything else defaults lower
-    };
-    
-    const pA = getPriority(a.id);
-    const pB = getPriority(b.id);
-    
-    // Sort by priority first. If priorities are the same, sort alphabetically.
-    if (pA !== pB) return pA - pB;
-    return a.name.localeCompare(b.name);
   });
 
-  methods.forEach(method => {
-    const card = document.createElement('div');
-    card.className = 'method-card';
-    card.dataset.id = method.id;
-    card.innerHTML = `
-      <div class="method-card-name">${method.name}</div>
-      <div class="method-card-desc">${method.description}</div>
-    `;
-    card.addEventListener('click', () => switchMethod(method.id));
-    container.appendChild(card);
-  });
+  // Category definitions with display order
+  const categoryConfig = [
+    { key: 'architectural', label: '◼ Architectural', ids: ['edifice', 'xylem'] },
+    { key: 'botanical',     label: '◼ Botanical',     ids: ['ailanthus'] },
+    { key: 'muqarnas',      label: '◼ Muqarnas',      ids: ['muqarnas', 'hansmeyer'] },
+    { key: 'generative',    label: '◼ Generative',    ids: [] }, // Catch-all
+  ];
+
+  // Assign methods to categories
+  const categorized = new Map();
+  for (const cat of categoryConfig) categorized.set(cat.key, []);
+
+  for (const method of methods) {
+    // Check explicit category field first
+    const explicitCat = method.category;
+    let placed = false;
+
+    if (explicitCat && categorized.has(explicitCat)) {
+      categorized.get(explicitCat).push(method);
+      placed = true;
+    }
+    
+    if (!placed) {
+      // Check if method ID is in a category's explicit list
+      for (const cat of categoryConfig) {
+        if (cat.ids.includes(method.id)) {
+          categorized.get(cat.key).push(method);
+          placed = true;
+          break;
+        }
+      }
+    }
+
+    if (!placed) {
+      // Default to generative
+      categorized.get('generative').push(method);
+    }
+  }
+
+  // Sort within each category: prioritize Edifice/Xylem, then alphabetical
+  const getPriority = (id) => {
+    if (id === 'edifice') return 1;
+    if (id === 'xylem') return 2;
+    if (id === 'hansmeyer') return 1; // First in muqarnas
+    if (id === 'muqarnas') return 2;
+    return 99;
+  };
+
+  for (const [, list] of categorized) {
+    list.sort((a, b) => {
+      const pA = getPriority(a.id), pB = getPriority(b.id);
+      if (pA !== pB) return pA - pB;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  let firstMethod = null;
+
+  // Render categories
+  for (const cat of categoryConfig) {
+    const list = categorized.get(cat.key);
+    if (list.length === 0) continue;
+
+    // Category header
+    const header = document.createElement('div');
+    header.className = 'method-category-header';
+    header.textContent = cat.label;
+    header.style.cssText = 'font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--accent,#ff6b35); padding:12px 10px 4px; font-weight:700; cursor:default; user-select:none; opacity:0.85;';
+    container.appendChild(header);
+
+    // Method cards
+    for (const method of list) {
+      if (!firstMethod) firstMethod = method;
+      const card = document.createElement('div');
+      card.className = 'method-card';
+      card.dataset.id = method.id;
+      card.innerHTML = `
+        <div class="method-card-name">${method.name}</div>
+        <div class="method-card-desc">${method.description}</div>
+      `;
+      card.addEventListener('click', () => switchMethod(method.id));
+      container.appendChild(card);
+    }
+  }
   
-  if (methods.length > 0) {
-    switchMethod(methods[0].id);
+  if (firstMethod) {
+    switchMethod(firstMethod.id);
   } else {
     state.methodId = null;
     document.getElementById('param-container').innerHTML = '';
