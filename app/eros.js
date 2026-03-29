@@ -484,6 +484,20 @@ function buildMethodSelector(methodTypeFilter = '2d') {
   const methods = MethodRegistry.list().filter(m => {
     const is3D = m.type === '3d';
     return methodTypeFilter === '3d' ? is3D : !is3D;
+  }).sort((a, b) => {
+    // Force Edifice and Xylem to the top
+    const getPriority = (id) => {
+      if (id === 'edifice') return 1;
+      if (id === 'xylem') return 2;
+      return 99; // Everything else defaults lower
+    };
+    
+    const pA = getPriority(a.id);
+    const pB = getPriority(b.id);
+    
+    // Sort by priority first. If priorities are the same, sort alphabetically.
+    if (pA !== pB) return pA - pB;
+    return a.name.localeCompare(b.name);
   });
 
   methods.forEach(method => {
