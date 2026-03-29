@@ -1,54 +1,177 @@
-# Deep Think: Art Analysis (Edifice System)
+# Deep Think: Art Analysis — Edifice (Art Blocks #204, Ben Kovach)
 
-This document provides a detailed visual and structural breakdown of the generative reference image (`art.png`), combining structural analysis with the "Edifice" physical and generative ground truth.
+Corrected and audited against [Ben Kovach's primary source](https://bendotk.com/writing/edifice).
+Reference token: Edifice #834 (OpenSea `0xa7d8…/204000834`).
 
-## 1. Compositional Structure & Grid
+---
 
-- **Perspective**: The scene acts on an orthographic 2D plane (flat top view).
-- **Grid Foundation**: The background features a very fine, subtle pale/off-white canvas, laying a structured mathematical foundation (overlapped grids - tartan lgrids the main grid is simple as a shape defining main cross like area with wide trunk, the cross is defining 4 areas at corner of the canvas).
-- **Clustering Strategy**: the main grids/areas are then sub-divided into strpes, with variable lengths. The composition is non-uniform, driven by space-filling algorithms (like a *Random Walk* or distance-based grouping/ or automata) on an underlying rectangular grid. Elements are grouped densely in the center (often preserving their original geometric structure) and become increasingly deformed, fuzzy, and chaotic toward the edges.
-- **Enclosures & Boundaries**: The mesh outlines (containers) are often invisible, relying instead on the background to act as thick white "grout" borders between cells. The geometry lines inside can sit adjacent to one another but never intersect or cross the container boundaries. This implies boundary constraints (e.g., elements sticking to the edges or bouncing off them).
+## 1. Algorithm Architecture
 
-## 2. Geometric Primitives & Forms
+Edifice is a **purely 2D, flat** generative system. There is no 3D, no shadows, no perspective lighting. The entire process operates on an orthographic plane.
 
-The generative geometry acts on a strict orthogonal grid populated by physics-based nets, rather than solid 3D objects:
+The pipeline proceeds in strict order:
 
-- **Stripes / Rectangles**: Dominant shapes include flat 2D rectangles acting as bounding Sripe/boxes, varying in length and width.
-  - Cross-like core arrangements often feature dominant, mostly intact vertical (y-direction) stripes in the middle, defining four distinct corner areas comprised of thinner, horizontal stripes.
-  - While central, longer stripes remain relatively intact with uniform, un-deformed meshes, the off-center medium stripes exhibit partial deformation (~30%). Shorter, peripheral stripes vary from highly deformed/fuzzy to completely intact configurations.
-- **The Spring-Mesh System**: The forms are predominantly composed of a **2D physics-based spring mesh** (a net structure/ structured mesh/tris). Every rope intersection is a physical node with mass.
-  - The mesh always lives *inside* its rectangular stripe container.
-  - The nodes respond to pushing forces or fields within the cells, stretching infinitely but never breaking, and critically, never intersecting with each other. Meshes are sometimes affected by gravational forces diforming it to one side or exploded in the middle leaving white spaces and dense shaped - like a torn cloth.
+```
+Cell Grid → Fill Style → Net Construction → Explosions → Style (boundary) → Displacement → Symmetry → Texture Render
+```
 
-## 3. Color Palette & Lighting
+## 2. Cell Grid (Foundation)
 
-The color selection mimics a **Risograph**, screen-printing, or retro architectural palette.
+- Every Edifice begins with a **rectangular cell grid** defined by two parameters:
+  - **Cell Size**: area of each cell (Fine = smallest, Colossal = largest).
+  - **Cell Aspect**: shape of each cell (Square, Tall, Extra Tall, Wide, Extra Wide).
+- The grid is the invisible skeleton. It is NEVER rendered directly—it defines the coordinate space into which rectangles are packed.
+- The cream/off-white background acts as visible "grout" between cells.
 
-| Role                            | Color Appearance          | Description / Approximate Hex                                         |
-| :------------------------------ | :------------------------ | :-------------------------------------------------------------------- |
-| **Background / Canvas**   | Warm Off-White / Cream    | Foundational canvas color acting as grid borders. Approx `#F6F4EB`. |
-| **Outlines / Wireframes** | Charcoal Black            | Used for structural spring/mesh lines. Approx `#2A2A2A`.            |
-| **Warm Accent 1**         | Terracotta / Burnt Orange | An earthy, rusted red-orange providing heat. Approx `#C85A32`.      |
-| **Warm Accent 2**         | Mustard / Dull Goldenrod  | A muted, dusty yellow. Approx `#D4A044`.                            |
-| **Cool Accent**           | Muted Teal / Deep Cyan    | A cool contrast against the warm yellows/reds. Approx `#3E7C81`.    |
-| **Neutral Accent**        | Blush / Pale Coral        | A soft pinkish-red, often used for dense cluster highlights.          |
+## 3. Fill Style (Rectangle Packing)
 
-*(Note: Palettes in this style are often weighted probabilistically rather than randomized equally, frequently sampled from photographs of physical paints).*
+Fill Style determines how variable-size rectangles are packed into the cell grid. This is the PRIMARY compositional driver.
 
-## 4. Texturizing & Physical Simulation Techniques
+| Fill Style | Algorithm |
+|---|---|
+| **Random Walk** | Picks a random starting cell. Grows a rectangle outward until blocked by grid edges or filled cells. Then picks a neighboring cell from the shape's endpoint, chooses a new direction, grows a new rectangle. Repeats until grid is full. Most common style. |
+| **Random** | Picks a random open cell on the grid and a direction, grows until blocked. Picks a new random open cell each time. |
+| **Ns** | Picks N ∈ [1,8]. Fills rectangles of height/width = N. When stuck, decrements N until N=1 (fills remaining cells individually). N=1 produces a fully filled grid. |
+| **Distance** | Grows from a start point outward, choosing the closest unfilled cell by Euclidean distance. |
+| **Manhattan** | Same as Distance but using Manhattan distance. |
+| **Chebyshev** | Same as Distance but using Chebyshev distance. |
+| **Bismuth** | Fills the grid with spiral patterns. |
+| **Spiral** | Fills the grid in a single inward-growing spiral. (Rare) |
+| **Bars** | Builds equal-width columns/towers next to each other. (Rarest) |
 
-- **Noise Layer**: The entire image features a uniform pass of fine film grain or digital noise to break up vector flatness, achieving an analogue / paper-like quality.
-- **Lattice Subdivision & Density**:
-  - Vertical stripes are constructed from a uniform modular square lattice. Each square features triangular subdivisions. At the common edges of these squares, the subdivisions become denser, yielding a highly structured "striped" appearance.
-  - Horizontal stripes often consist of even denser triangular meshes, giving them a darker, heavier appearance (especially when pushed off-center by forces).
-- **Explosive Deformation (Texture)**: The "fuzziness" or "flow field" appearance is driven by physics simulations running *after* the mesh generation. Repulsive points ("explosions" or repeller nodes) scattered in the space apply forces to the mesh, compressing the strings into those dense, dark triangulations.
-- **Flat Shading & Density Overlap**: Shading is not driven by external lights, but by **line density**. Areas where the mesh compresses appear darker (similar to hatching). Multiplicative blend modes are used whenever container boundaries overlap or grid shift occurs.
+> **Critical**: There is NO pre-defined "cross structure" or "trunk/flank" topology. Any cross-like appearance is an emergent artifact of the fill algorithm + explosion positioning.
 
-## 5. Algorithmic Heuristics (Implementation Clues for Eros)
+## 4. Net Construction (Mass-Spring Lattice)
 
-To replicate this specific system dynamics inside the Eros engine (e.g., inside `edifice.js`), you would need:
+Each packed rectangle becomes a **net** — a mass-spring lattice:
 
-1. **Rectangular Space Packing Algorithm**: Grid-filling iterators like 'Random Walk' or 'Distance mapping' that decide the bounds of the containers.
-2. **Spring-Mass Mesh Physics**: Generating a uniform string lattice inside every bounding box.
-3. **Repulsion Nodes (Explosions)**: Spawning invisible repeller points that push mesh nodes outward, generating the signature deformed/squiggled areas.
-4. **Boundary Interference Restrictions**: Establishing rules for when a stretched mesh node hits the bounding box limit ( it both stick rigidly to the edge, or rubber-band bounce according to the force, but never cross the bounaries, or self-intersect).
+- At every point where "ropes" cross, there is a **physical node with mass** that responds to forces.
+- Connections between nodes **CANNOT break** but **CAN stretch infinitely**.
+- The net lives entirely inside its rectangular container.
+- Density depends on the Texture setting (Hatched nets are ~2× denser).
+
+### Spring-Mass Physics Equations
+
+```
+F_spring = -k × (|d| - rest_length) × d̂     (k ≈ 0.5)
+F_explosion = Σ force_i × (node - expl_i) / |node - expl_i|²
+v(t+1) = v(t) × damping                      (damping ≈ 0.82)
+x(t+1) = x(t) + v(t)
+```
+
+## 5. Explosions
+
+Explosions are **invisible repulsive point forces** placed within the grid. They push net nodes outward, creating the signature distorted/compressed texture.
+
+### Explosion Count
+Determines how many explosion points exist.
+
+### Explosion Position (8 strategies)
+
+| Position | Algorithm |
+|---|---|
+| **Random** | Uniformly distributed across the canvas. |
+| **Central** | Normally distributed around the horizontal center line. |
+| **Rect Centers** | Near the center of randomly selected nets. |
+| **Corners** | At the corners of nets. Emergent effect: rounding corners. |
+| **Edges** | At the midpoints of net edges. |
+| **Grid Centers** | At the center of grid cells. |
+| **Random (Gridded)** | At corners, edge-midpoints, and centers of grid cells. |
+| **Start / End** | Positioned in the first/last N nets drawn by the fill style. |
+
+### Spread
+Controls how much explosions drift during simulation. Low spread = fixed points, sharp textures. High spread = muted, diffuse textures.
+
+### Interference
+- **Low**: each net responds ONLY to explosions directly inside it.
+- **High**: nets respond to explosions in wider proximity, producing more chaotic patterns.
+
+## 6. Style (Boundary Behavior)
+
+Style determines what happens when a net node hits its rectangular container edge.
+
+| Style | Behavior | Visual Effect |
+|---|---|---|
+| **Explosive** | Container is rubbery. Net bounces BACK INWARD when it touches the edge. | Organic, puffed, bulging shapes. |
+| **Modern** | Container edges are STICKY. Net pieces stay stuck where they land. | Traced/partially traced cells. Emergent outlined behavior. |
+
+> These are the ONLY deformation mechanisms. There is NO gravity field in Edifice.
+
+## 7. Texture (Rendering Mode)
+
+Texture determines which net connections are drawn.
+
+| Texture | Rendering Rule |
+|---|---|
+| **Lattice** | ALL connections (horizontal + vertical) are drawn. Most pieces use this. |
+| **Lattice (Hatched)** | ONLY horizontal connections are drawn. Nets are initialized denser. Produces characteristic horizontal stripe appearance. |
+| **Sqribble** | Each node is randomly perturbed before explosions, creating a scribbly texture. |
+
+> **#834 observation**: The horizontal-line-dominant appearance strongly suggests **Hatched** texture.
+
+## 8. Displacement (Post-Build Warp)
+
+After the grid is built and nets are simulated, a **displacement function** is applied to EVERY point to warp the entire composition. This is how non-orthogonal shapes appear.
+
+| Displacement | Effect |
+|---|---|
+| **None** | No warp. |
+| **Twist** | Rotates points around the center by a variable amount based on distance. |
+| **Sharp** | Skews odd rows/columns one direction, even rows/columns the other → jagged edges. |
+| **Detach** | Picks a line between grid cells, separates segments, shifts them apart. |
+| **Turn** | Rotates everything by a constant amount → lopsided appearance. |
+| **Smooth** | Applies a single smooth curving displacement. |
+| **Squish** | Compresses even rows into triangles, expands odd rows into trapezoids. |
+| **Shift** | Skews the whole space uniformly. |
+| **Wave** | Sine wave displacement with parameters from cell width/height. |
+| **Isometrize** | Isometric transformation of 2D space. (Rare) |
+| **Perspective** | Two-point perspective transform → illusion of 3D. Sets Dimensions=3. |
+| **V** | Half convex / half concave perspective tricks. |
+
+## 9. Symmetry
+
+Applied to both grid layout and colors.
+
+| Symmetry | Effect |
+|---|---|
+| **Random** | No symmetry applied. |
+| **Horizontal** | Top half reflected onto bottom. |
+| **Vertical** | Left half reflected onto right. |
+| **Radial** | Both reflections → fourfold symmetry. |
+
+## 10. Topology
+
+Determines what happens when nets (or portions) exceed the canvas boundary.
+
+| Topology | Effect |
+|---|---|
+| **Finite** | They fall off / are clipped at the edge. |
+| **Torus** | They wrap around to the opposite edge. |
+
+## 11. Color Palette
+
+- **16 palettes**: Noct, Porcelain, Grayscale, Salt, Sunflower, Meep Morp, Lark, Xenoglossy, 66, Good News, Bad News, Onus, Blood Orange, Ska, Kid Robot, Couch.
+- Colors are sampled from photographs of physical canvases painted by the artist.
+- Some palettes use **weighted bucket sampling** (probabilistic, not uniform random).
+- Some are **gradient palettes** (Grayscale, Salt, Sunflower, Meep Morp, Onus, Blood Orange) that can be applied in multiple ways.
+- Good News / Bad News are complementary black-and-white newspaper palettes (Bad News is inverted).
+- Lark (dark, moody) and Porcelain (bright, near-blank) complement each other.
+
+## 12. Additional Features
+
+- **Line Width**: Thick lines make untouched rectangles appear filled. Thin lines produce ghostlike images.
+- **Borders**: Some pieces include border elements.
+- **Film Grain**: Uniform fine noise pass to break vector flatness → analogue/paper quality.
+
+## 13. Edifice #834 — Specific Analysis
+
+Looking at the reference image:
+- **Fill Style**: Random Walk (large variable rectangles packed densely, with clear directional growth patterns)
+- **Texture**: Lattice (Hatched) — overwhelmingly horizontal lines, denser nets
+- **Style**: Likely Modern or Explosive (some cells show traced boundaries)
+- **Cell Aspect**: Tall or Extra Tall (cells are taller than wide)
+- **Interference**: Low to Medium (some cross-contamination between adjacent cells)
+- **Displacement**: None or minimal (orthogonal grid structure is preserved)
+- **Symmetry**: Random (no visible symmetry)
+- **Palette**: Blue-dominant gradient (likely a custom gradient palette applied by distance)
+- **Explosion Position**: Random or Central (deformation concentrated toward middle, periphery more intact)
