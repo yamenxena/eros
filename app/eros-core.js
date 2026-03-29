@@ -234,6 +234,8 @@ const MethodRegistry = {
 const ErosEngine = {
   canvas: null, ctx: null, W: 0, H: 0,
   canvas3D: null, renderer3D: null, scene3D: null, camera3D: null, controls3D: null,
+  perspCamera: null, orthoCamera: null,
+  composer: null, ssaoPass: null, hqRender: false,
   activeMethod: null,
 
   init(canvas, canvas3D) {
@@ -244,9 +246,29 @@ const ErosEngine = {
       this.canvas3D = canvas3D;
       this.renderer3D = new THREE.WebGLRenderer({ canvas: canvas3D, antialias: true, preserveDrawingBuffer: true, alpha: true });
       this.renderer3D.setPixelRatio(window.devicePixelRatio);
+      this.renderer3D.shadowMap.enabled = true;
+      this.renderer3D.shadowMap.type = THREE.PCFSoftShadowMap;
+
       this.scene3D = new THREE.Scene();
-      // Camera is initialized here but methods will configure its properties (fov, etc)
-      this.camera3D = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
+      
+      // Studio Lighting Environment
+      if (typeof THREE.RoomEnvironment !== 'undefined') {
+        const pmremGenerator = new THREE.PMREMGenerator(this.renderer3D);
+        pmremGenerator.compileEquirectangularShader();
+        this.scene3D.environment = pmremGenerator.fromScene(new THREE.RoomEnvironment()).texture;
+      }
+      
+      this.renderer3D.outputEncoding = THREE.sRGBEncoding;
+      this.renderer3D.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer3D.toneMappingExposure = 1.0;
+
+      const aspect = 1;
+      this.perspCamera = new THREE.PerspectiveCamera(45, aspect, 0.1, 10000);
+      
+      const frustumSize = 30; // Will be scaled dynamically by methods
+      this.orthoCamera = new THREE.OrthographicCamera(-frustumSize/2, frustumSize/2, frustumSize/2, -frustumSize/2, 0.1, 10000);
+      
+      this.camera3D = this.perspCamera; // default
       
       if (typeof THREE.OrbitControls !== 'undefined') {
         this.controls3D = new THREE.OrbitControls(this.camera3D, this.renderer3D.domElement);
@@ -257,6 +279,19 @@ const ErosEngine = {
           }
         });
       }
+
+      // ── Post Processing Setup ──
+      if (typeof THREE.EffectComposer !== 'undefined') {
+        this.composer = new THREE.EffectComposer(this.renderer3D);
+        const renderPass = new THREE.RenderPass(this.scene3D, this.camera3D);
+        this.composer.addPass(renderPass);
+
+        this.ssaoPass = new THREE.SSAOPass(this.scene3D, this.camera3D, this.W, this.H);
+        this.ssaoPass.kernelRadius = 16;
+        this.ssaoPass.minDistance = 0.005;
+        this.ssaoPass.maxDistance = 0.1;
+        this.composer.addPass(this.ssaoPass);
+      }
     }
 
     this.W = canvas.width = 1024;
@@ -265,6 +300,7 @@ const ErosEngine = {
       this.canvas3D.width = this.W;
       this.canvas3D.height = this.H;
       this.renderer3D.setSize(this.W, this.H, false);
+      if (this.composer) this.composer.setSize(this.W, this.H);
     }
   },
 
@@ -314,10 +350,33 @@ const ErosEngine = {
     let result = null;
 
     if (this.activeMethod.type === '3d') {
+      
+      // Dual Camera Swap Logic
+      const isOrtho = params.cameraType === 'Orthographic';
+      this.camera3D = isOrtho ? this.orthoCamera : this.perspCamera;
+      
+      if (this.controls3D) {
+        this.controls3D.object = this.camera3D;
+      }
+
+      // Ensure post-processing knows the active camera
+      if (this.composer) {
+        this.composer.passes[0].camera = this.camera3D; // RenderPass
+        if (this.ssaoPass) this.ssaoPass.camera = this.camera3D;
+      }
+
       result = this.activeMethod.render(
         this.renderer3D, this.scene3D, this.camera3D, this.controls3D, 
         this.W, this.H, params, paletteColors
       );
+
+      // Execute HQ Render via Composer or Draft Render
+      if (this.hqRender && this.composer) {
+        this.composer.render();
+      } else {
+        this.renderer3D.render(this.scene3D, this.camera3D);
+      }
+      
     } else {
       result = this.activeMethod.render(
         this.canvas, this.ctx, this.W, this.H, params, paletteColors

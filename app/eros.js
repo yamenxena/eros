@@ -429,6 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Canvas Size ──
   document.getElementById('btn-canvas-apply')?.addEventListener('click', applyCanvasSize);
+  document.getElementById('hq-render-toggle')?.addEventListener('change', (e) => {
+    ErosEngine.hqRender = e.target.checked;
+    scheduleRender();
+  });
 
   // ── Harmony (in right panel) ──
   bindSlider('harmony-hue', 'val-base-hue', updateHarmony);

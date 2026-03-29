@@ -39,7 +39,8 @@ MethodRegistry.register({
     { key: 'roughness',  type: 'range',  label: 'Roughness',   default: 0.7,  min: 0.0, max: 1.0, precision: 2, category: 'Materials' },
     { key: 'metalness',  type: 'range',  label: 'Metalness',   default: 0.1,  min: 0.0, max: 1.0, precision: 2, category: 'Materials' },
     
-    { key: 'view',       type: 'select', label: 'Camera View', default: 'Isometric', options: ['Isometric', 'Top', 'Front', 'Side', 'Free'], category: 'View' },
+    { key: 'cameraType', type: 'select', label: 'Lens',        default: 'Orthographic', options: ['Orthographic', 'Perspective'], category: 'View' },
+    { key: 'cameraView', type: 'select', label: 'Angle',       default: 'Isometric',    options: ['Isometric', 'Top', 'Front', 'Side', 'Free'], category: 'View' },
     
     { key: 'bgColor',    type: 'select', label: 'Background',  default: 'Dark', options: ['Dark', 'Light', 'Palette Base'], category: 'Background' }
   ],
@@ -83,7 +84,15 @@ MethodRegistry.register({
       scene.add(ambientLight);
       
       const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      dirLight.position.set(20, 40, 20);
+      dirLight.position.set(20, 60, 20);
+      dirLight.castShadow = true;
+      dirLight.shadow.camera.left = -50;
+      dirLight.shadow.camera.right = 50;
+      dirLight.shadow.camera.top = 50;
+      dirLight.shadow.camera.bottom = -50;
+      dirLight.shadow.bias = -0.001;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
       scene.add(dirLight);
 
       const fillLight = new THREE.DirectionalLight(0xaaccff, 0.3);
@@ -96,10 +105,13 @@ MethodRegistry.register({
 
       const materials = activeColors.map(hsl => {
         const c = new THREE.Color().setHSL(hsl.h/360, hsl.s/100, hsl.l/100);
-        return new THREE.MeshStandardMaterial({
+        return new THREE.MeshPhysicalMaterial({
           color: c,
           roughness: params.roughness,
           metalness: params.metalness,
+          clearcoat: 1.0 - params.roughness, // Shiny when not rough
+          clearcoatRoughness: 0.1,
+          ior: 1.5 // Plastic-like index of refraction
         });
       });
       
@@ -115,6 +127,8 @@ MethodRegistry.register({
       for (let i = 0; i < params.steps; i++) {
           const matIdx = Math.floor(prng.next() * materials.length);
           const mesh = new THREE.Mesh(geom, materials[matIdx]);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
           mesh.position.set(cx, cy, cz);
           group.add(mesh);
           
@@ -139,13 +153,14 @@ MethodRegistry.register({
       
       // Update camera position based on view FIRST time or if changed
       const camDist = this._lastMaxSize * 1.5;
-      if (params.view === 'Isometric') {
+      
+      if (params.cameraView === 'Isometric') {
         camera.position.set(camDist, camDist, camDist);
-      } else if (params.view === 'Top') {
+      } else if (params.cameraView === 'Top') {
         camera.position.set(0, camDist * 1.5, 0);
-      } else if (params.view === 'Front') {
+      } else if (params.cameraView === 'Front') {
         camera.position.set(0, 0, camDist * 1.5);
-      } else if (params.view === 'Side') {
+      } else if (params.cameraView === 'Side') {
         camera.position.set(camDist * 1.5, 0, 0);
       } else {
         if (camera.position.lengthSq() < 1) camera.position.set(camDist, camDist*0.5, camDist);
@@ -155,11 +170,21 @@ MethodRegistry.register({
     }
     
     // Always update aspect and render
-    camera.aspect = W / H;
-    camera.updateProjectionMatrix();
+    if (camera.isOrthographicCamera) {
+      const viewSize = this._lastMaxSize * 1.5;
+      const aspect = W / H;
+      camera.left = -viewSize * aspect / 2;
+      camera.right = viewSize * aspect / 2;
+      camera.top = viewSize / 2;
+      camera.bottom = -viewSize / 2;
+      camera.updateProjectionMatrix();
+    } else {
+      camera.aspect = W / H;
+      camera.updateProjectionMatrix();
+    }
     if (controls) controls.update();
     
-    renderer.render(scene, camera);
+    // Rendering is now handled by ErosEngine.render to support PostProcessing
     
     return {
       blocks: params.steps,
