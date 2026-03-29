@@ -16,18 +16,20 @@ if (typeof MethodRegistry !== 'undefined') {
       { key: 'anisotropy',      type: 'range',   label: 'Anisotropy',       default: 2.2,   min: 1.0, max: 4.0, precision: 2, category: 'Physics' },
       { key: 'ageGradient',     type: 'boolean', label: 'Age Gradient',     default: true,  category: 'Physics' },
       { key: 'noiseImpact',     type: 'range',   label: 'Biological Noise', default: 0.5,   min: 0.0, max: 1.0, precision: 2, category: 'Physics' },
+      { key: 'seed',            type: 'range',   label: 'Seed',             default: 42,    min: 0,   max: 9999, precision: 0, category: 'Physics' },
       
       { key: 'paletteMode',     type: 'select',  label: 'Color Theme',      default: 'Ailanthus Nature', options: ['Ailanthus Nature', 'Palette Mapped'], category: 'Materials' }
     ],
     
     _seeds: null,
     _lastDensity: null,
+    _lastSeed: null,
     _lastW: null,
     _lastH: null,
 
     init(params, canvas, ctx) {
-      if (typeof Prando === 'undefined') {
-        console.error('Prando PRNG not found.');
+      if (typeof PRNG === 'undefined') {
+        console.error('PRNG not found.');
       }
       if (typeof SimplexNoise === 'undefined' && typeof noise !== 'undefined') {
           // ensure Simplex is available globally or we use Math.random fallback for noise later
@@ -37,7 +39,7 @@ if (typeof MethodRegistry !== 'undefined') {
 
     generateSeeds(params, w, h) {
       this._seeds = [];
-      const prng = new Prando('ailanthus-growth');
+      const prng = new PRNG(params.seed || 42);
       
       const cols = params.cellularDensity;
       const rows = Math.floor(cols * (h / w));
@@ -59,12 +61,13 @@ if (typeof MethodRegistry !== 'undefined') {
         }
       }
       this._lastDensity = params.cellularDensity;
+      this._lastSeed = params.seed;
       this._lastW = w;
       this._lastH = h;
     },
 
     render(params, canvas, ctx) {
-      if (!this._seeds || params.cellularDensity !== this._lastDensity || canvas.width !== this._lastW || canvas.height !== this._lastH) {
+      if (!this._seeds || params.cellularDensity !== this._lastDensity || params.seed !== this._lastSeed || canvas.width !== this._lastW || canvas.height !== this._lastH) {
         this.generateSeeds(params, canvas.width, canvas.height);
       }
 
