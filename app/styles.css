@@ -400,11 +400,84 @@ select { cursor: pointer; }
   overflow: hidden;
 }
 
+/* Viewport: scrollable/pannable wrapper around the canvas */
+#canvas-viewport {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  overflow: hidden;
+  cursor: grab;
+}
+#canvas-viewport.grabbing { cursor: grabbing; }
+
 #eros-canvas {
-  max-width: 100%; max-height: 100%;
+  transform-origin: 0 0;
   border-radius: 4px;
   box-shadow: 0 0 40px rgba(200, 149, 108, 0.08);
+  /* actual width/height set via JS; CSS just contributes visuals */
 }
+
+/* ── Canvas Size Bar (top-left overlay) ── */
+#canvas-size-bar {
+  position: absolute;
+  top: 12px; left: 12px;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(13, 10, 20, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  z-index: 6;
+  backdrop-filter: blur(6px);
+}
+
+#canvas-size-bar label {
+  font-size: 10px; font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+#canvas-size-bar input[type="number"] {
+  width: 64px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  text-align: center;
+}
+
+#canvas-size-bar input[type="number"]:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+#canvas-size-bar .size-x {
+  font-size: 11px; color: var(--text-muted);
+}
+
+#canvas-size-bar .btn-icon {
+  min-width: 28px; min-height: 28px;
+  font-size: 14px; padding: 2px 6px;
+}
+
+/* ── Zoom indicator badge ── */
+#zoom-indicator {
+  position: absolute;
+  bottom: 52px; right: 14px;
+  font-size: 10px; font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(13, 10, 20, 0.8);
+  padding: 3px 8px;
+  border-radius: 10px;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+#zoom-indicator.visible { opacity: 1; }
 
 #render-info {
   position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
@@ -412,6 +485,7 @@ select { cursor: pointer; }
   background: rgba(13, 10, 20, 0.8);
   padding: 4px 12px; border-radius: 12px;
   white-space: nowrap;
+  z-index: 6;
 }
 
 #canvas-toolbar {

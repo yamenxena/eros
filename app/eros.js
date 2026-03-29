@@ -200,6 +200,161 @@ const AnimController = {
   },
 };
 
+// ── Canvas View Controller (Zoom + Pan) ───────────────────────
+const CanvasView = {
+  scale: 1,
+  panX: 0, panY: 0,
+  _dragging: false,
+  _lastX: 0, _lastY: 0,
+  _fadeTimer: null,
+
+  MIN_SCALE: 0.1,
+  MAX_SCALE: 8,
+
+  init() {
+    const vp = document.getElementById('canvas-viewport');
+    if (!vp) return;
+
+    // Mouse wheel zoom
+    vp.addEventListener('wheel', e => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const rect = vp.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      this._zoomAt(mx, my, delta);
+    }, { passive: false });
+
+    // Pan via left-mouse drag
+    vp.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      this._dragging = true;
+      this._lastX = e.clientX;
+      this._lastY = e.clientY;
+      vp.classList.add('grabbing');
+    });
+    window.addEventListener('mousemove', e => {
+      if (!this._dragging) return;
+      const dx = e.clientX - this._lastX;
+      const dy = e.clientY - this._lastY;
+      this._lastX = e.clientX;
+      this._lastY = e.clientY;
+      this.panX += dx;
+      this.panY += dy;
+      this._apply();
+    });
+    window.addEventListener('mouseup', () => {
+      if (!this._dragging) return;
+      this._dragging = false;
+      vp.classList.remove('grabbing');
+    });
+
+    // Touch pinch-zoom + pan
+    let lastTouchDist = 0;
+    vp.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        lastTouchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      } else if (e.touches.length === 1) {
+        this._dragging = true;
+        this._lastX = e.touches[0].clientX;
+        this._lastY = e.touches[0].clientY;
+      }
+    }, { passive: false });
+    vp.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const delta = dist / (lastTouchDist || dist);
+        lastTouchDist = dist;
+        const rect = vp.getBoundingClientRect();
+        const cx = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
+        const cy = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
+        this._zoomAt(cx, cy, delta);
+      } else if (this._dragging && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - this._lastX;
+        const dy = e.touches[0].clientY - this._lastY;
+        this._lastX = e.touches[0].clientX;
+        this._lastY = e.touches[0].clientY;
+        this.panX += dx;
+        this.panY += dy;
+        this._apply();
+      }
+    }, { passive: false });
+    vp.addEventListener('touchend', () => { this._dragging = false; lastTouchDist = 0; });
+  },
+
+  _zoomAt(mx, my, factor) {
+    const oldScale = this.scale;
+    const newScale = Math.max(this.MIN_SCALE, Math.min(this.MAX_SCALE, oldScale * factor));
+    // Adjust pan so the point under the cursor stays fixed
+    this.panX = mx - (mx - this.panX) * (newScale / oldScale);
+    this.panY = my - (my - this.panY) * (newScale / oldScale);
+    this.scale = newScale;
+    this._apply();
+  },
+
+  zoomIn()  { this._zoomAtCenter(1.25); },
+  zoomOut() { this._zoomAtCenter(0.8); },
+
+  _zoomAtCenter(factor) {
+    const vp = document.getElementById('canvas-viewport');
+    if (!vp) return;
+    const rect = vp.getBoundingClientRect();
+    this._zoomAt(rect.width / 2, rect.height / 2, factor);
+  },
+
+  fit() {
+    const vp = document.getElementById('canvas-viewport');
+    const canvas = document.getElementById('eros-canvas');
+    if (!vp || !canvas) return;
+    const vpW = vp.clientWidth, vpH = vp.clientHeight;
+    const cW = canvas.width, cH = canvas.height;
+    const pad = 40;
+    this.scale = Math.min((vpW - pad) / cW, (vpH - pad) / cH, 1);
+    this.panX = (vpW - cW * this.scale) / 2;
+    this.panY = (vpH - cH * this.scale) / 2;
+    this._apply();
+  },
+
+  reset() {
+    this.scale = 1;
+    const vp = document.getElementById('canvas-viewport');
+    const canvas = document.getElementById('eros-canvas');
+    if (vp && canvas) {
+      this.panX = (vp.clientWidth - canvas.width) / 2;
+      this.panY = (vp.clientHeight - canvas.height) / 2;
+    } else {
+      this.panX = 0; this.panY = 0;
+    }
+    this._apply();
+  },
+
+  _apply() {
+    const canvas = document.getElementById('eros-canvas');
+    if (!canvas) return;
+    canvas.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+    this._showIndicator();
+  },
+
+  _showIndicator() {
+    let badge = document.getElementById('zoom-indicator');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'zoom-indicator';
+      document.getElementById('canvas-area')?.appendChild(badge);
+    }
+    badge.textContent = `${Math.round(this.scale * 100)}%`;
+    badge.classList.add('visible');
+    clearTimeout(this._fadeTimer);
+    this._fadeTimer = setTimeout(() => badge.classList.remove('visible'), 1200);
+  }
+};
 
 
 // ── Init ──────────────────────────────────────────────────────
@@ -254,6 +409,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById('eros-canvas');
     if (el.requestFullscreen) el.requestFullscreen();
   });
+
+  // ── Zoom / Pan ──
+  CanvasView.init();
+  document.getElementById('btn-zoom-in')?.addEventListener('click', () => CanvasView.zoomIn());
+  document.getElementById('btn-zoom-out')?.addEventListener('click', () => CanvasView.zoomOut());
+  document.getElementById('btn-zoom-fit')?.addEventListener('click', () => CanvasView.fit());
+  document.getElementById('btn-zoom-reset')?.addEventListener('click', () => CanvasView.reset());
+
+  // ── Canvas Size ──
+  document.getElementById('btn-canvas-apply')?.addEventListener('click', applyCanvasSize);
 
   // ── Harmony (in right panel) ──
   bindSlider('harmony-hue', 'val-base-hue', updateHarmony);
@@ -332,6 +497,10 @@ function switchMethod(methodId) {
   document.querySelectorAll('.method-card').forEach(c => {
     c.classList.toggle('active', c.dataset.id === methodId);
   });
+
+  // Sync canvas size inputs to method dimensions
+  _syncCanvasSizeUI();
+  CanvasView.fit();
 
   buildParamSidebar(method);
   buildPalettePanel();  // ← right panel
@@ -436,6 +605,39 @@ function doRender() {
     renderPending = false;
     updateConcept();
   });
+}
+
+// ── Canvas Size Controls ──────────────────────────────────────
+function _syncCanvasSizeUI() {
+  const wInput = document.getElementById('canvas-width');
+  const hInput = document.getElementById('canvas-height');
+  if (wInput) wInput.value = ErosEngine.W;
+  if (hInput) hInput.value = ErosEngine.H;
+}
+
+function applyCanvasSize() {
+  const wInput = document.getElementById('canvas-width');
+  const hInput = document.getElementById('canvas-height');
+  if (!wInput || !hInput) return;
+
+  let w = parseInt(wInput.value) || 1024;
+  let h = parseInt(hInput.value) || 1024;
+  w = Math.max(256, Math.min(4096, w));
+  h = Math.max(256, Math.min(4096, h));
+  wInput.value = w;
+  hInput.value = h;
+
+  // Update engine canvas
+  const canvas = document.getElementById('eros-canvas');
+  if (canvas) {
+    canvas.width = w;
+    canvas.height = h;
+    ErosEngine.W = w;
+    ErosEngine.H = h;
+  }
+
+  CanvasView.fit();
+  doRender();
 }
 
 // ── Animation Panel ───────────────────────────────────────────
