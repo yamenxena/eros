@@ -306,7 +306,7 @@ if (typeof MethodRegistry !== 'undefined') {
         }
 
         // 2. Structural & Diagonal Swelling Constraints
-        for (let iter = 0; iter < 4; iter++) {
+        for (let iter = 0; iter < 8; iter++) {
             
             // First, solve Swelling for each quad
             for (const q of matrix.quads) {
@@ -353,7 +353,7 @@ if (typeof MethodRegistry !== 'undefined') {
 
             // 3. Absolute Inter-Node Collision Repulsion (0-Overlap Guard)
             // Ensures nodes that are crushed together push perfectly apart
-            const safeDist = matrix.minDistance * 0.35; // 35% of a grid cell
+            const safeDist = matrix.minDistance * 0.55; // 55% of a grid cell
             const safeSq = safeDist * safeDist;
             for (let i = 0; i < matrix.nodes.length; i++) {
                 const nA = matrix.nodes[i];
@@ -375,7 +375,14 @@ if (typeof MethodRegistry !== 'undefined') {
         }
 
         // 4. Integrator & Structural Blueprint Boundaries
+        const maxV = matrix.minDistance * 0.8;
         for (const node of matrix.nodes) {
+            // Velocity Clamping to prevent quantum tunneling past neighbors
+            if (node.vx > maxV) node.vx = maxV;
+            if (node.vx < -maxV) node.vx = -maxV;
+            if (node.vy > maxV) node.vy = maxV;
+            if (node.vy < -maxV) node.vy = -maxV;
+
             node.x += node.vx;
             node.y += node.vy;
             node.vx *= damp;
