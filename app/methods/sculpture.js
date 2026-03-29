@@ -31,14 +31,17 @@ MethodRegistry.register({
   ],
 
   params: [
-    { key: 'seed',       type: 'number', label: 'Seed',        default: 42,   min: 1, max: 999999 },
-    { key: 'steps',      type: 'range',  label: 'Path Steps',  default: 500,  min: 50, max: 4000, precision: 0 },
-    { key: 'blockSize',  type: 'range',  label: 'Block Size',  default: 1,    min: 0.1, max: 5, precision: 1 },
-    { key: 'spread',     type: 'range',  label: 'Spread',      default: 1.0,  min: 0.1, max: 5.0, precision: 1 },
-    { key: 'roughness',  type: 'range',  label: 'Roughness',   default: 0.7,  min: 0.0, max: 1.0, precision: 2 },
-    { key: 'metalness',  type: 'range',  label: 'Metalness',   default: 0.1,  min: 0.0, max: 1.0, precision: 2 },
-    { key: 'view',       type: 'select', label: 'Camera View', default: 'Isometric', options: ['Isometric', 'Top', 'Front', 'Side', 'Free'] },
-    { key: 'bgColor',    type: 'select', label: 'Background',  default: 'Dark', options: ['Dark', 'Light', 'Palette Base'] }
+    { key: 'seed',       type: 'number', label: 'Seed',        default: 42,   min: 1, max: 999999, category: 'Method' },
+    { key: 'steps',      type: 'range',  label: 'Path Steps',  default: 500,  min: 50, max: 4000, precision: 0, category: 'Method' },
+    { key: 'blockSize',  type: 'range',  label: 'Block Size',  default: 1,    min: 0.1, max: 5, precision: 1, category: 'Method' },
+    { key: 'spread',     type: 'range',  label: 'Spread',      default: 1.0,  min: 0.1, max: 5.0, precision: 1, category: 'Method' },
+    
+    { key: 'roughness',  type: 'range',  label: 'Roughness',   default: 0.7,  min: 0.0, max: 1.0, precision: 2, category: 'Materials' },
+    { key: 'metalness',  type: 'range',  label: 'Metalness',   default: 0.1,  min: 0.0, max: 1.0, precision: 2, category: 'Materials' },
+    
+    { key: 'view',       type: 'select', label: 'Camera View', default: 'Isometric', options: ['Isometric', 'Top', 'Front', 'Side', 'Free'], category: 'View' },
+    
+    { key: 'bgColor',    type: 'select', label: 'Background',  default: 'Dark', options: ['Dark', 'Light', 'Palette Base'], category: 'Background' }
   ],
 
   narrative(p) { return `A 3D spatial random walk of ${p.steps} steps.`; },

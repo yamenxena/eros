@@ -368,12 +368,25 @@ document.addEventListener('DOMContentLoaded', () => {
   ErosEngine.init(canvas, canvas3D);
 
   // ── Tab management ──
+  let activeTabType = '2d';
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      const targetId = btn.dataset.tab;
+      
+      if (targetId === 'canvas-2d' || targetId === 'canvas-3d') {
+        document.getElementById('tab-canvas').classList.add('active');
+        const newType = targetId === 'canvas-3d' ? '3d' : '2d';
+        if (newType !== activeTabType) {
+          activeTabType = newType;
+          buildMethodSelector(activeTabType);
+        }
+      } else {
+        const tabEl = document.getElementById('tab-' + targetId);
+        if (tabEl) tabEl.classList.add('active');
+      }
     });
   });
 
@@ -387,13 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Build method selector ──
-  buildMethodSelector();
-
-  // ── Load default method ──
-  const methods = MethodRegistry.list();
-  if (methods.length > 0) {
-    switchMethod(methods[0].id);
-  }
+  buildMethodSelector('2d');
 
   // ── Static button bindings ──
   document.getElementById('btn-new-seed').addEventListener('click', () => {
@@ -466,10 +473,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Method Selector ───────────────────────────────────────────
-function buildMethodSelector() {
+function buildMethodSelector(methodTypeFilter = '2d') {
   const container = document.getElementById('method-cards');
   container.innerHTML = '';
-  MethodRegistry.list().forEach(method => {
+  
+  const methods = MethodRegistry.list().filter(m => {
+    const is3D = m.type === '3d';
+    return methodTypeFilter === '3d' ? is3D : !is3D;
+  });
+
+  methods.forEach(method => {
     const card = document.createElement('div');
     card.className = 'method-card';
     card.dataset.id = method.id;
@@ -480,6 +493,13 @@ function buildMethodSelector() {
     card.addEventListener('click', () => switchMethod(method.id));
     container.appendChild(card);
   });
+  
+  if (methods.length > 0) {
+    switchMethod(methods[0].id);
+  } else {
+    state.methodId = null;
+    document.getElementById('param-container').innerHTML = '';
+  }
 }
 
 function switchMethod(methodId) {
@@ -515,62 +535,95 @@ function switchMethod(methodId) {
 function buildParamSidebar(method) {
   const container = document.getElementById('param-container');
   container.innerHTML = '';
+  
+  if (!method.params || method.params.length === 0) return;
 
-  method.params.forEach(paramDef => {
-    const group = document.createElement('div');
-    group.className = 'param-group';
-
-    const value = state.params[paramDef.key];
-    const displayValue = formatParamValue(paramDef, value);
-
-    if (paramDef.type === 'number') {
-      group.innerHTML = `
-        <label>${paramDef.label} <span id="val-${paramDef.key}" class="param-val">${displayValue}</span></label>
-        <input type="number" id="input-${paramDef.key}" value="${value}" min="${paramDef.min}" max="${paramDef.max}">
-      `;
-      container.appendChild(group);
-      const input = group.querySelector('input');
-      input.addEventListener('change', () => {
-        state.params[paramDef.key] = parseInt(input.value) || paramDef.default;
-        document.getElementById(`val-${paramDef.key}`).textContent = state.params[paramDef.key];
-        scheduleRender();
-      });
-
-    } else if (paramDef.type === 'range') {
-      const rawValue = paramDef.scale ? value / paramDef.scale : value;
-      group.innerHTML = `
-        <label>${paramDef.label} <span id="val-${paramDef.key}" class="param-val">${displayValue}</span></label>
-        <input type="range" id="input-${paramDef.key}" min="${paramDef.min}" max="${paramDef.max}" value="${rawValue}">
-      `;
-      container.appendChild(group);
-      const input = group.querySelector('input');
-      input.addEventListener('input', () => {
-        const raw    = parseFloat(input.value);
-        const scaled = paramDef.scale ? raw * paramDef.scale : raw;
-        state.params[paramDef.key] = scaled;
-        document.getElementById(`val-${paramDef.key}`).textContent = formatParamValue(paramDef, scaled);
-        _syncAnimTo(paramDef.key, scaled, paramDef.precision ?? 0); // keep anim 'to' live
-        scheduleRender();
-      });
-
-    } else if (paramDef.type === 'select') {
-      const optionsHTML = paramDef.options.map(opt => {
-        const label = paramDef.format ? paramDef.format(opt) : opt;
-        return `<option value="${opt}" ${opt === value ? 'selected' : ''}>${label}</option>`;
-      }).join('');
-      group.innerHTML = `
-        <label>${paramDef.label} <span id="val-${paramDef.key}" class="param-val">${displayValue}</span></label>
-        <select id="input-${paramDef.key}">${optionsHTML}</select>
-      `;
-      container.appendChild(group);
-      const input = group.querySelector('select');
-      input.addEventListener('change', () => {
-        state.params[paramDef.key] = isNaN(input.value) ? input.value : parseFloat(input.value);
-        document.getElementById(`val-${paramDef.key}`).textContent = formatParamValue(paramDef, state.params[paramDef.key]);
-        scheduleRender();
-      });
-    }
+  // Group params by category
+  const categories = {};
+  method.params.forEach(p => {
+    const cat = p.category || 'Method';
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(p);
   });
+
+  for (const [catName, params] of Object.entries(categories)) {
+    const section = document.createElement('div');
+    section.className = 'anim-section';
+    section.style.marginBottom = '8px';
+
+    const toggle = document.createElement('div');
+    toggle.className = 'anim-toggle open';
+    toggle.innerHTML = `<span>⏵ ${catName}</span><span class="anim-chevron">›</span>`;
+    
+    const panel = document.createElement('div');
+    panel.className = 'anim-panel';
+
+    toggle.addEventListener('click', () => {
+      toggle.classList.toggle('open');
+      panel.classList.toggle('hidden');
+    });
+
+    section.appendChild(toggle);
+    section.appendChild(panel);
+
+    params.forEach(paramDef => {
+      const group = document.createElement('div');
+      group.className = 'param-group';
+
+      const value = state.params[paramDef.key];
+      const displayValue = formatParamValue(paramDef, value);
+
+      if (paramDef.type === 'number') {
+        group.innerHTML = `
+          <label>${paramDef.label} <span id="val-${paramDef.key}" class="param-val">${displayValue}</span></label>
+          <input type="number" id="input-${paramDef.key}" value="${value}" min="${paramDef.min}" max="${paramDef.max}">
+        `;
+        panel.appendChild(group);
+        const input = group.querySelector('input');
+        input.addEventListener('change', () => {
+          state.params[paramDef.key] = parseInt(input.value) || paramDef.default;
+          document.getElementById(`val-${paramDef.key}`).textContent = state.params[paramDef.key];
+          scheduleRender();
+        });
+
+      } else if (paramDef.type === 'range') {
+        const rawValue = paramDef.scale ? value / paramDef.scale : value;
+        group.innerHTML = `
+          <label>${paramDef.label} <span id="val-${paramDef.key}" class="param-val">${displayValue}</span></label>
+          <input type="range" id="input-${paramDef.key}" min="${paramDef.min}" max="${paramDef.max}" value="${rawValue}">
+        `;
+        panel.appendChild(group);
+        const input = group.querySelector('input');
+        input.addEventListener('input', () => {
+          const raw    = parseFloat(input.value);
+          const scaled = paramDef.scale ? raw * paramDef.scale : raw;
+          state.params[paramDef.key] = scaled;
+          document.getElementById(`val-${paramDef.key}`).textContent = formatParamValue(paramDef, scaled);
+          _syncAnimTo(paramDef.key, scaled, paramDef.precision ?? 0); // keep anim 'to' live
+          scheduleRender();
+        });
+
+      } else if (paramDef.type === 'select') {
+        const optionsHTML = paramDef.options.map(opt => {
+          const label = paramDef.format ? paramDef.format(opt) : opt;
+          return `<option value="${opt}" ${opt === value ? 'selected' : ''}>${label}</option>`;
+        }).join('');
+        group.innerHTML = `
+          <label>${paramDef.label} <span id="val-${paramDef.key}" class="param-val">${displayValue}</span></label>
+          <select id="input-${paramDef.key}">${optionsHTML}</select>
+        `;
+        panel.appendChild(group);
+        const input = group.querySelector('select');
+        input.addEventListener('change', () => {
+          state.params[paramDef.key] = isNaN(input.value) ? input.value : parseFloat(input.value);
+          document.getElementById(`val-${paramDef.key}`).textContent = formatParamValue(paramDef, state.params[paramDef.key]);
+          scheduleRender();
+        });
+      }
+    });
+
+    container.appendChild(section);
+  }
 }
 
 function formatParamValue(paramDef, value) {
@@ -1028,7 +1081,10 @@ function loadFromGallery(item) {
   // Switch to canvas tab
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelector('[data-tab="canvas"]').classList.add('active');
+  
+  const targetTabName = (method && method.type === '3d') ? 'canvas-3d' : 'canvas-2d';
+  const targetBtn = document.querySelector(`[data-tab="${targetTabName}"]`);
+  if (targetBtn) targetBtn.classList.add('active');
   document.getElementById('tab-canvas').classList.add('active');
 
   doRender();
