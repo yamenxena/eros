@@ -46,16 +46,6 @@ if (typeof MethodRegistry !== 'undefined') {
     _lastW: null,
     _lastH: null,
 
-    init(params, canvas, ctx) {
-      if (typeof PRNG === 'undefined') {
-        console.error('PRNG not found.');
-      }
-      if (typeof SimplexNoise === 'undefined' && typeof noise !== 'undefined') {
-          // ensure Simplex is available globally or we use Math.random fallback for noise later
-      }
-      this.generateSeeds(params, canvas.width, canvas.height);
-    },
-
     generateSeeds(params, w, h) {
       this._seeds = [];
       const prng = new PRNG(params.seed || 42);
@@ -85,9 +75,9 @@ if (typeof MethodRegistry !== 'undefined') {
       this._lastH = h;
     },
 
-    render(params, canvas, ctx) {
-      if (!this._seeds || params.cellularDensity !== this._lastDensity || params.seed !== this._lastSeed || canvas.width !== this._lastW || canvas.height !== this._lastH) {
-        this.generateSeeds(params, canvas.width, canvas.height);
+    render(canvas, ctx, W, H, params, palette) {
+      if (!this._seeds || params.cellularDensity !== this._lastDensity || params.seed !== this._lastSeed || W !== this._lastW || H !== this._lastH) {
+        this.generateSeeds(params, W, H);
       }
 
       // ── Physical Colors ──
@@ -114,7 +104,7 @@ if (typeof MethodRegistry !== 'undefined') {
 
       // 1. Dead Substrate Base (The Void)
       ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, W, H);
 
       // 2. We will draw each expanding active lenticel cluster
       const tl = params.growthTimeline; // 0.0 to 1.0
@@ -133,7 +123,7 @@ if (typeof MethodRegistry !== 'undefined') {
           let localTl = tl;
           if (params.ageGradient) {
               // Top of canvas is younger (tl * 0.2), bottom is older (tl * 1.5)
-              const ageFactor = 0.2 + (seed.y / canvas.height) * 1.3;
+              const ageFactor = 0.2 + (seed.y / H) * 1.3;
               localTl = Math.min(1.0, tl * ageFactor);
           }
           
