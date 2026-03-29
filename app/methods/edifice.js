@@ -8,6 +8,7 @@
 MethodRegistry.register({
   id: 'edifice',
   name: 'Edifice',
+  category: 'Eros Heuristics',
   version: '4.0.0',
   description: 'Procedural composition of strict rectilinear layout enclosing 2D cloth physics. High fidelity architectural visualizer.',
 

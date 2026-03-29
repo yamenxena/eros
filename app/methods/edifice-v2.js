@@ -12,7 +12,7 @@
 MethodRegistry.register({
   id: 'edifice-v2',
   name: 'Edifice v2 (Kovach)',
-  category: 'Architectural',
+  category: 'Eros Heuristics',
   version: '5.1.0',
   description: 'Pure ontological spatial matrix (Random Walk Fill/Ns) enclosing 2D nets subjected to inverse-square repulsive explosions, bounded by sticky/bouncy enclosures, and post-warped.',
 
@@ -71,6 +71,7 @@ MethodRegistry.register({
     { key: 'lineWeight', type: 'range', label: 'Ink Pen Size', default: 0.60, min: 0.1, max: 3.0, precision: 2, category: 'Render' },
     { key: 'lineAlpha', type: 'range', label: 'Ink Alpha', default: 0.85, min: 0.05, max: 1.0, precision: 2, category: 'Render' },
     { key: 'grainIntensity', type: 'range', label: 'Canvas Grain', default: 10, min: 0, max: 50, precision: 0, category: 'Render' },
+    { key: 'sketchyLines', type: 'boolean', label: 'Sketchy Grain Warp', default: false, category: 'Render' },
   ],
 
   narrative(p) {
@@ -177,7 +178,7 @@ MethodRegistry.register({
       // Render Vectors with Displacement Warp
       ctx.lineWidth = params.lineWeight;
       ctx.strokeStyle = `hsla(${col.h}, ${col.s}%, ${col.l}%, ${params.lineAlpha})`;
-      this._renderMesh(ctx, cloth, W/2, H/2, params.displacement, rect);
+      this._renderMesh(ctx, cloth, W/2, H/2, params.displacement, rect, params, prng);
 
       totalNodes += cloth.nodes.length;
     }
@@ -475,12 +476,20 @@ MethodRegistry.register({
      return { x, y };
   },
 
-  _renderMesh(ctx, cloth, cx, cy, displacementType, rect) {
+  _renderMesh(ctx, cloth, cx, cy, displacementType, rect, params, prng) {
     ctx.beginPath();
     for (const link of cloth.links) {
        let p1 = this._displacePoint(link.n1.x, link.n1.y, cx, cy, displacementType);
        let p2 = this._displacePoint(link.n2.x, link.n2.y, cx, cy, displacementType);
        
+       if (params.sketchyLines && params.grainIntensity > 0) {
+           let force = params.grainIntensity * 0.12;
+           p1.x += (prng.next() - 0.5) * force;
+           p1.y += (prng.next() - 0.5) * force;
+           p2.x += (prng.next() - 0.5) * force;
+           p2.y += (prng.next() - 0.5) * force;
+       }
+
        // Absolute Clamp to prevent overlap between adjacent enclosures
        p1.x = Math.max(rect.x, Math.min(rect.x + rect.w, p1.x));
        p1.y = Math.max(rect.y, Math.min(rect.y + rect.h, p1.y));
