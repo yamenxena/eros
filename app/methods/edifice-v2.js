@@ -65,6 +65,7 @@ MethodRegistry.register({
     
     // Level 4/5: The Hatch & Texture
     { key: 'texture', type: 'select', label: 'Texture Style', default: 'Hatched', options: ['Lattice', 'Hatched', 'Sqribble'], category: 'Render' },
+    { key: 'outlineColor', type: 'select', label: 'Grid Color', default: 'White', options: ['White', 'Black', 'Palette Color'], category: 'Render' },
     { key: 'lineWeight', type: 'range', label: 'Ink Pen Size', default: 0.60, min: 0.1, max: 3.0, precision: 2, category: 'Render' },
     { key: 'lineAlpha', type: 'range', label: 'Ink Alpha', default: 0.85, min: 0.05, max: 1.0, precision: 2, category: 'Render' },
   ],
@@ -140,7 +141,13 @@ MethodRegistry.register({
       // Draw Grid Outline (The 2D Web boundaries)
       if (params.gridOutline > 0) {
         ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = `hsl(${col.h}, ${col.s}%, ${Math.max(10, col.l - 20)}%)`; 
+        if (params.outlineColor === 'White') {
+           ctx.strokeStyle = '#FFFFFF';
+        } else if (params.outlineColor === 'Black') {
+           ctx.strokeStyle = '#000000';
+        } else {
+           ctx.strokeStyle = `hsl(${col.h}, ${col.s}%, ${Math.max(10, col.l - 20)}%)`; 
+        }
         ctx.lineWidth = params.gridOutline;
         ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
         ctx.globalCompositeOperation = 'multiply';
