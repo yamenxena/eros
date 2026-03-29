@@ -1,9 +1,8 @@
 /**
- * Ailanthus Bark V2: Geometric Fracture & Growth Tension Physics
- * Simulates a topological quad mesh representing rigid suberin (bark plates).
- * Exerts a circumferential tension force over time.
- * When tension exceeds a threshold, adjoining cells snap apart, generating
- * organic, non-overlapping diamond voids (lenticular fissures).
+ * Ailanthus Bark V3: Macro Stripes & Micro Inverse Growth
+ * Simulates a dual-layered topological quad mesh.
+ * Macro-stripes tear apart geometrically under Trunk Expansion (lateral tension).
+ * Micro-cells inside the stripes experience Inverse Growth (Callus Swelling) to geometrically fill the voids without overlapping.
  */
 
 if (typeof MethodRegistry !== 'undefined') {
@@ -11,15 +10,15 @@ if (typeof MethodRegistry !== 'undefined') {
     id: 'ailanthus',
     name: 'Ailanthus Bark (2D)',
     type: '2d',
-    version: '2.0.0',
-    description: 'Voronoi-style fracture mechanics simulating circumferential tree growth and rigid bark tearing.',
+    version: '3.0.0',
+    description: 'Macro/Micro Voronoi-style fracture mechanics. Outer vertical stripes tear while internal cells geometrically swell via inverse growth equations.',
 
     palettes: [
       {
         name: 'Ailanthus Life Cycle', mood: 'Botanical Tension',
         colors: [
           { h: 140, s: 2, l: 63 },  // #9FA1A0 - Light Gray Bark Base (Rigid Plate)
-          { h: 25, s: 60, l: 30 },  // #8B4513 - Chestnut Shadow (Deep Fissure)
+          { h: 25, s: 60, l: 30 },  // #8B4513 - Chestnut Shadow (Deep Fissure Void)
           { h: 73, s: 50, l: 70 },  // #C6D68F - Yellow-Green Matrix (Callus)
           { h: 106, s: 23, l: 33 }, // #4A6741 - Deep Canopy Green (Accents)
           { h: 26, s: 38, l: 51 },  // #B07C55 - Bronze Spring Growth (Edge Highlight)
@@ -29,7 +28,7 @@ if (typeof MethodRegistry !== 'undefined') {
         name: 'Dead Wood', mood: 'Winter Suberin',
         colors: [
           { h: 30, s: 10, l: 40 },  
-          { h: 0, s: 0, l: 10 },    
+          { h: 0, s: 0, l: 15 },    
           { h: 40, s: 20, l: 30 },  
           { h: 30, s: 5, l: 80 },   
           { h: 0, s: 0, l: 90 },    
@@ -39,27 +38,26 @@ if (typeof MethodRegistry !== 'undefined') {
 
     params: [
       { key: 'growthTimeline',  type: 'range',   label: 'Trunk Expansion (t)',  default: 0.1,   min: 0.0, max: 1.0, precision: 2, category: 'Physics' },
-      { key: 'structuralDensity', type: 'range', label: 'Plate Density',        default: 16,    min: 4,   max: 40,  precision: 0, category: 'Geometry' },
+      { key: 'macroDensity',    type: 'range',   label: 'Macro Stripes',        default: 8,     min: 3,   max: 24,  precision: 0, category: 'Geometry' },
+      { key: 'microDensity',    type: 'range',   label: 'Micro Cells/Stripe',   default: 4,     min: 1,   max: 10,  precision: 0, category: 'Geometry' },
       { key: 'fractureStrength',type: 'range',   label: 'Bark Rigidity',        default: 45,    min: 10,  max: 150, precision: 0, category: 'Physics' },
-      { key: 'anisotropy',      type: 'range',   label: 'Vertical Grain Ratio', default: 2.8,   min: 1.0, max: 5.0, precision: 1, category: 'Geometry' },
-      { key: 'noiseImpact',     type: 'range',   label: 'Biological Jitter',    default: 0.6,   min: 0.0, max: 1.5, precision: 2, category: 'Geometry' },
-      { key: 'seed',            type: 'number',  label: 'Seed',                 default: 1842,  min: 0,   max: 99999, category: 'Method' },
+      { key: 'callusSwell',     type: 'range',   label: 'Cellular Inverse Swell',default: 1.5,  min: 0.0, max: 4.0, precision: 1, category: 'Physics' },
+      { key: 'anisotropy',      type: 'range',   label: 'Vertical Grain Ratio', default: 3.0,   min: 1.0, max: 6.0, precision: 1, category: 'Geometry' },
+      { key: 'noiseImpact',     type: 'range',   label: 'Biological Jitter',    default: 0.8,   min: 0.0, max: 2.0, precision: 2, category: 'Geometry' },
+      { key: 'seed',            type: 'number',  label: 'Seed',                 default: 2026,  min: 0,   max: 99999, category: 'Method' },
       { key: 'paletteMode',     type: 'select',  label: 'Color Theme',          default: 'Ailanthus Life Cycle', options: ['Ailanthus Life Cycle', 'Dead Wood'], category: 'Materials' }
     ],
 
-    narrative(p) { return `A dense topological lattice of independent bark plates (${p.structuralDensity} columns). As time processes (t=${p.growthTimeline}), a circumferential tension force simulates the growing girth of the tree. Plates fracture geometrically when lateral stress exceeds ${p.fractureStrength} thresholds, opening up non-overlapping diamond voids bounded by rigid mechanics.`; },
-    equation(p) { return `Lattice = JitteredQuads(c=${p.structuralDensity}, α=${p.anisotropy})\nF_tension(x) = (x - W/2) * t_expansion\nLimit: if(Δd > Stress) -> SnapEdge()\nClamp: Σ Plates ∩ Void = ∅`; },
-    
+    narrative(p) { return `A dual-layered topological lattice. Rigid outer Macro Stripes (${p.macroDensity}) tear apart under lateral tree trunk expansion (t=${p.growthTimeline}). The internal Micro Cells (${p.microDensity}/stripe) react to the void pressure by exhibiting massive Inverse Growth, swelling geometrically into the fissures, transitioning from dead bark to glowing Bronze/Yellow-Green callus.`; },
+    equation(p) { return `Topology = MacroStripes(N) × MicroCells(M)\nF_tension(x) = x * t_expansion\nFracture: IF Boundary_Strain > ${p.fractureStrength} → SNAP()\nInverseGrowth: IF snapped, Internal_Rest_X += t * CallusSwell`; },
+
     _mesh: null,
-    _lastDensity: null,
-    _lastAnisotropy: null,
-    _lastNoise: null,
-    _lastSeed: null,
+    _lastParams: {},
     _lastW: null,
     _lastH: null,
 
     // ═══════════════════════════════════════════════════════════════
-    // BUILD THE TOPOLOGICAL FRACTURE MESH
+    // BUILD THE DUAL-LAYER FRACTURE MESH
     // ═══════════════════════════════════════════════════════════════
     _buildFractureGrid(params, w, h) {
       const prng = new PRNG(params.seed);
@@ -70,27 +68,21 @@ if (typeof MethodRegistry !== 'undefined') {
           else if (typeof simplex.noise3d === 'function') noiseFn = (x,y) => simplex.noise3d(x,y,0);
           else if (typeof simplex.noise2D === 'function') noiseFn = (x,y) => simplex.noise2D(x,y);
       }
-      
       if (!noiseFn) noiseFn = (x,y) => (prng.next() - 0.5) * 2.0;
 
-      const cols = params.structuralDensity;
+      const cols = params.macroDensity * params.microDensity;
       const cellW = w / cols;
       const cellH = cellW * params.anisotropy; 
       const rows = Math.ceil(h / cellH) + 2; 
 
-      this._mesh = {
-          quads: [],
-          nodes: [],
-          internalSprings: [],
-          structuralSprings: []
-      };
+      this._mesh = { quads: [], nodes: [], internalSprings: [], structuralSprings: [] };
 
       // 1. Generate Virtual Grid Points (Jittered)
-      // To create diamond fissures later, we use a "brick" staggered pattern
+      // Brick staggered pattern for geometric diamond fissures
       const vGrid = [];
       for (let r = -1; r <= rows; r++) {
          const rowPoints = [];
-         const stagger = (r % 2 === Math.abs(r % 2) ? 0.5 : 0) * cellW; // proper modulo
+         const stagger = (r % 2 === Math.abs(r % 2) ? 0.5 : 0) * cellW;
          for (let c = -1; c <= cols; c++) {
              let px = c * cellW + stagger;
              let py = r * cellH;
@@ -98,17 +90,15 @@ if (typeof MethodRegistry !== 'undefined') {
              // Biological Jitter
              const nx = noiseFn(px * 0.005, py * 0.005);
              const ny = noiseFn(px * 0.005 + 100, py * 0.005 + 100);
-             
-             px += nx * cellW * params.noiseImpact * 0.4;
-             py += ny * cellH * params.noiseImpact * 0.4;
+             px += nx * cellW * params.noiseImpact * 0.5;
+             py += ny * cellH * params.noiseImpact * 0.5;
              
              rowPoints.push({ x: px, y: py, r: r, c: c });
          }
          vGrid.push(rowPoints);
       }
 
-      // 2. Create Independent Quads (Plates)
-      // Each quad gets its very own 4 nodes so it can rip away from neighbors.
+      // 2. Create Independent Quads (Micro-Cells)
       for (let r = 0; r < rows; r++) {
          for (let c = 0; c < cols; c++) {
              const tl = { x: vGrid[r][c].x, y: vGrid[r][c].y, vx: 0, vy: 0, originX: vGrid[r][c].x, originY: vGrid[r][c].y };
@@ -116,10 +106,10 @@ if (typeof MethodRegistry !== 'undefined') {
              const br = { x: vGrid[r+1][c+1].x, y: vGrid[r+1][c+1].y, vx: 0, vy: 0, originX: vGrid[r+1][c+1].x, originY: vGrid[r+1][c+1].y };
              const bl = { x: vGrid[r+1][c].x, y: vGrid[r+1][c].y, vx: 0, vy: 0, originX: vGrid[r+1][c].x, originY: vGrid[r+1][c].y };
              
-             // A slight shrink to create visible micromargins even before tearing
+             // Slight shrink for micro-margins
              const cx = (tl.x + tr.x + br.x + bl.x) / 4;
              const cy = (tl.y + tr.y + br.y + bl.y) / 4;
-             const shrink = 0.98;
+             const shrink = 0.99;
              tl.x = cx + (tl.x - cx)*shrink; tl.y = cy + (tl.y - cy)*shrink;
              tr.x = cx + (tr.x - cx)*shrink; tr.y = cy + (tr.y - cy)*shrink;
              br.x = cx + (br.x - cx)*shrink; br.y = cy + (br.y - cy)*shrink;
@@ -127,97 +117,114 @@ if (typeof MethodRegistry !== 'undefined') {
 
              this._mesh.nodes.push(tl, tr, br, bl);
              
+             // Identify Macro Stripe Ownership
+             const macroStripeId = Math.floor(c / params.microDensity);
+
              const quad = {
                  n: [tl, tr, br, bl],
                  r: r, c: c,
-                 area: cellW * cellH,
+                 macroStripeId: macroStripeId,
+                 originalWidth: Math.abs(tr.x - tl.x),
                  center: { x: cx, y: cy }
              };
              this._mesh.quads.push(quad);
 
-             // Extremely stiff internal springs to hold plate shape perfectly intact
-             const addInternal = (n1, n2) => {
+             // Extremely stiff internal springs hold perfect micro-cell geometry
+             const addInternal = (n1, n2, isHorizontal=false) => {
                  const dist = Math.sqrt((n2.x-n1.x)**2 + (n2.y-n1.y)**2);
-                 this._mesh.internalSprings.push({ n1, n2, rest: dist, broken: false, k: 0.95 });
+                 this._mesh.internalSprings.push({ n1, n2, rest: dist, originalRest: dist, broken: false, k: 0.95, isHorizontal });
              };
-             addInternal(tl, tr); addInternal(tr, br); addInternal(br, bl); addInternal(bl, tl);
-             addInternal(tl, br); addInternal(tr, bl); // Cross braces prevent skewing
+             // Tag horizontal springs for 'Inverse Growth' swelling later
+             addInternal(tl, tr, true); addInternal(bl, br, true); 
+             addInternal(tr, br); addInternal(bl, tl);
+             addInternal(tl, br); addInternal(tr, bl); // Cross braces prevent skew
          }
       }
 
-      // 3. Connect Quads with Structural Adhesion Springs (The ones that SNAP)
+      // 3. Connect Quads (Inter-cellular & Inter-macro Adhesions)
       const getQuad = (r, c) => this._mesh.quads.find(q => q.r === r && q.c === c);
       for (let r = 0; r < rows; r++) {
          for (let c = 0; c < cols; c++) {
              const q = getQuad(r, c);
              if (!q) continue;
 
-             const addStructural = (n1, n2) => {
+             const addStructural = (n1, n2, isMacroBoundary) => {
                  if(!n1 || !n2) return;
                  const dist = Math.sqrt((n2.x-n1.x)**2 + (n2.y-n1.y)**2);
-                 // Threshold incorporates biological noise (some tear easy, some hard)
-                 const threshold = prng.range(1.0, 3.5);
-                 this._mesh.structuralSprings.push({ n1, n2, rest: dist, broken: false, k: 0.2, threshold });
+                 // Macro Boundaries tear easily (low threshold). 
+                 // Micro Boundaries NEVER tear (infinite threshold).
+                 const threshold = isMacroBoundary ? prng.range(1.0, 3.5) : 999999.0;
+                 // Micro-boundaries also have an expansive element (they swell horizontally)
+                 this._mesh.structuralSprings.push({ n1, n2, rest: dist, originalRest: dist, broken: false, k: 0.3, threshold, isMacroBoundary });
              };
 
              // Connect to Right neighbor
              const qRight = getQuad(r, c+1);
              if (qRight) {
-                 addStructural(q.n[1], qRight.n[0]); // TR -> Right's TL
-                 addStructural(q.n[2], qRight.n[3]); // BR -> Right's BL
+                 const isMacroBoundary = (q.macroStripeId !== qRight.macroStripeId);
+                 addStructural(q.n[1], qRight.n[0], isMacroBoundary); // TR -> Right's TL
+                 addStructural(q.n[2], qRight.n[3], isMacroBoundary); // BR -> Right's BL
              }
              // Connect to Bottom neighbor
              const qBot = getQuad(r+1, c);
              if (qBot) {
-                 addStructural(q.n[3], qBot.n[0]); // BL -> Bot's TL
-                 addStructural(q.n[2], qBot.n[1]); // BR -> Bot's TR
+                 // Vertical boundaries almost never tear (inf threshold) to maintain stripes
+                 addStructural(q.n[3], qBot.n[0], false); // BL -> Bot's TL
+                 addStructural(q.n[2], qBot.n[1], false); // BR -> Bot's TR
              }
          }
       }
 
-      this._lastDensity = params.structuralDensity;
-      this._lastAnisotropy = params.anisotropy;
-      this._lastNoise = params.noiseImpact;
-      this._lastSeed = params.seed;
+      // Track exact parameters
+      this._lastParams = { ...params };
       this._lastW = w;
       this._lastH = h;
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // PHYSICS SOLVER: EULER INTEGRATION + ITERATIVE SPRING RELAXATION
+    // DUAL-LAYER PHYSICS: ITERATIVE SOLVER with INVERSE GROWTH
     // ═══════════════════════════════════════════════════════════════
-    _solvePhysics(W, H, growthT, Rigidity) {
-        // Deep clone current node states to origin states so physics is deterministic per frame based solely on growthT
-        // Actually, since we want realtime dragging timeline, we MUST reset the mesh every frame.
-        // Wait, resetting 4000 nodes and re-running 50 steps per frame is heavy but perfectly viable.
-        
-        const simSteps = 60; // Physics steps
+    _solvePhysics(W, H, growthT, Rigidity, callusSwell) {
+        const simSteps = 60; // Physics fidelity
         const maxExpansion = W * 0.8 * growthT; // Max lateral force
 
+        // INVERSE GROWTH: Expand horizontal micro-cell properties based on time
+        for (const sp of this._mesh.internalSprings) {
+            if (sp.isHorizontal) {
+                // Micro-cell geometry swells actively 
+                sp.rest = sp.originalRest * (1.0 + (growthT * callusSwell));
+            }
+        }
+        for (const sp of this._mesh.structuralSprings) {
+            if (!sp.isMacroBoundary && !sp.broken) {
+                // The inter-cell connections within the stripe also swell
+                sp.rest = sp.originalRest * (1.0 + (growthT * callusSwell));
+            }
+        }
+
+        // INTEGRATION
         for (let s = 0; s < simSteps; s++) {
-            // Apply Tensor Field Force
+            // Apply Tensor Field Force (Trunk Expansion)
             for (const n of this._mesh.nodes) {
-                // Growth pulls laterally from the center of the tree
                 const distFromCenter = (n.originX - W/2); 
                 const lateralForce = (distFromCenter / (W/2)) * (maxExpansion / simSteps);
                 
-                n.vx += lateralForce * 0.05; // Force vector
-                // Little bit of vertical expansion
+                n.vx += lateralForce * 0.05; 
                 const distY = (n.originY - H/2);
-                n.vy += (distY / (H/2)) * (maxExpansion / simSteps) * 0.05;
+                n.vy += (distY / (H/2)) * (maxExpansion / simSteps) * 0.02; // Minor vertical
             }
 
-            // Integrative step
+            // Move nodes
             for (const n of this._mesh.nodes) {
                 n.x += n.vx;
                 n.y += n.vy;
-                n.vx *= 0.8; // High friction/dampening
+                n.vx *= 0.8; // Dampening
                 n.vy *= 0.8;
             }
 
-            // Resolve Springs (Iterations for stiffness)
+            // Reverse-Integrate Springs (Iterative Constraint Solver)
             for (let i = 0; i < 3; i++) {
-                // Internal Springs (Unbreakable, maintain Plate geometry)
+                // 1. Maintain Micro-Cell geometry & Swelling
                 for (const sp of this._mesh.internalSprings) {
                     const dx = sp.n2.x - sp.n1.x;
                     const dy = sp.n2.y - sp.n1.y;
@@ -229,7 +236,7 @@ if (typeof MethodRegistry !== 'undefined') {
                     sp.n2.x -= offsetX; sp.n2.y -= offsetY;
                 }
 
-                // Structural Adhesion Springs (Fracture Mechanics)
+                // 2. Structural/Macro Boundaries (Fracture Mechanics)
                 for (const sp of this._mesh.structuralSprings) {
                     if (sp.broken) continue;
 
@@ -238,13 +245,14 @@ if (typeof MethodRegistry !== 'undefined') {
                     const dist = Math.sqrt(dx*dx + dy*dy) || 0.01;
                     const strain = dist - sp.rest;
 
-                    // The SNAP!
-                    if (strain > sp.threshold * (Rigidity * 0.1)) {
+                    // The SNAP! Only Macro boundaries can break
+                    if (sp.isMacroBoundary && strain > sp.threshold * (Rigidity * 0.1)) {
                         sp.broken = true;
-                        continue; // No force applied, they fly apart!
+                        continue; // Void opens up laterally
                     }
 
                     const diff = strain / dist;
+                    // Lower K for inter-cell bridges to allow bending
                     const offsetX = dx * 0.5 * diff * sp.k;
                     const offsetY = dy * 0.5 * diff * sp.k;
                     sp.n1.x += offsetX; sp.n1.y += offsetY;
@@ -255,22 +263,30 @@ if (typeof MethodRegistry !== 'undefined') {
     },
 
     // ═══════════════════════════════════════════════════════════════
+    // DYNAMIC STRAIN COLORING HELPER
+    // ═══════════════════════════════════════════════════════════════
+    _lerpColor(c1, c2, t) {
+        return {
+            h: c1.h + (c2.h - c1.h) * t,
+            s: c1.s + (c2.s - c1.s) * t,
+            l: c1.l + (c2.l - c1.l) * t
+        };
+    },
+
+    // ═══════════════════════════════════════════════════════════════
     // RENDER LOOP
     // ═══════════════════════════════════════════════════════════════
     render(canvas, ctx, W, H, params, palette) {
-      // Because this is a deterministic timeline, we MUST rebuild the mesh from scratch 
-      // every frame if parameters change, so `growthTimeline` scrubbing is flawless.
-      if (!this._mesh || 
-          params.structuralDensity !== this._lastDensity || 
-          params.anisotropy !== this._lastAnisotropy ||
-          params.noiseImpact !== this._lastNoise ||
-          params.seed !== this._lastSeed || 
-          W !== this._lastW || H !== this._lastH) {
-        
+      // Rebuild mesh only on geometry change
+      const isParamChanged = [
+          'macroDensity', 'microDensity', 'anisotropy', 'noiseImpact', 'seed'
+      ].some(k => params[k] !== this._lastParams[k]);
+
+      if (!this._mesh || isParamChanged || W !== this._lastW || H !== this._lastH) {
           this._buildFractureGrid(params, W, H);
       }
 
-      // 1. Reset mesh to zero state before applying physics timeline
+      // Reset mesh strictly to origin for timeless deterministic physics
       for (let n of this._mesh.nodes) {
           n.x = n.originX; n.y = n.originY; n.vx = 0; n.vy = 0;
       }
@@ -278,34 +294,27 @@ if (typeof MethodRegistry !== 'undefined') {
           s.broken = false;
       }
 
-      // 2. Compute Physical Deformation
-      this._solvePhysics(W, H, params.growthTimeline, params.fractureStrength);
+      // Execute Mathematics
+      this._solvePhysics(W, H, params.growthTimeline, params.fractureStrength, params.callusSwell);
 
-      // 3. Stringify the Color Palette Safely
-      let bg = `hsl(${palette[1].h}, ${palette[1].s}%, ${palette[1].l}%)`; // Default Fissure Shadow
-      let structuralPlate = `hsl(${palette[0].h}, ${palette[0].s}%, ${palette[0].l}%)`;
-      let callusMatrix = `hsl(${palette[2].h}, ${palette[2].s}%, ${palette[2].l}%)`;
-      let plateEdge = `hsl(${palette[4].h}, ${palette[4].s}%, ${palette[4].l}%)`; // Bronze
-
-      // Render Void Base
+      // Deep Shadow Void (Chestnut)
+      let bg = `hsl(${palette[1].h}, ${palette[1].s}%, ${palette[1].l}%)`;
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, W, H);
 
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
 
-      // 4. Draw Callus Tissue (Connecting threads where bark broke)
-      // Visual flair showing the living tissue beneath tearing
+      // Draw the Healing Callus Threads
       ctx.lineWidth = 1.0;
       for (const sp of this._mesh.structuralSprings) {
-          if (sp.broken) {
+          if (sp.broken && sp.isMacroBoundary) {
               const dx = sp.n2.x - sp.n1.x;
               const dy = sp.n2.y - sp.n1.y;
               const dist = Math.sqrt(dx*dx + dy*dy);
-              
-              // Only draw threads if they aren't astronomically far
-              if (dist < W * 0.1) {
-                  ctx.strokeStyle = `hsla(${palette[2].h}, ${palette[2].s}%, ${palette[2].l}%, ${1.0 - (dist/(W*0.1))})`;
+              if (dist < W * 0.15) {
+                  // Connect glowing Yellow-Green fibers across the tear
+                  ctx.strokeStyle = `hsla(${palette[2].h}, ${palette[2].s}%, ${palette[2].l}%, ${1.0 - (dist/(W*0.15))})`;
                   ctx.beginPath();
                   ctx.moveTo(sp.n1.x, sp.n1.y);
                   ctx.lineTo(sp.n2.x, sp.n2.y);
@@ -314,7 +323,11 @@ if (typeof MethodRegistry !== 'undefined') {
           }
       }
 
-      // 5. Draw the Rigid Bark Plates (Suberin)
+      // Draw Micro-Cells mapped by Strain Energy (Coloring the entire canvas!)
+      const cLightGray = palette[0];
+      const cBronze    = palette[4];
+      const cYellowGre = palette[2];
+
       for (const quad of this._mesh.quads) {
           ctx.beginPath();
           ctx.moveTo(quad.n[0].x, quad.n[0].y);
@@ -323,15 +336,33 @@ if (typeof MethodRegistry !== 'undefined') {
           ctx.lineTo(quad.n[3].x, quad.n[3].y);
           ctx.closePath();
 
-          ctx.fillStyle = structuralPlate;
+          // Calculate Dynamic Strain: Current Average Width / Original Width
+          const curWidth = Math.abs(quad.n[1].x - quad.n[0].x) + Math.abs(quad.n[2].x - quad.n[3].x);
+          const strain = (curWidth / 2) / quad.originalWidth;
+
+          // Color Algorithm: 
+          // 1.0 (dead bark) -> 1.5 (Bronze) -> 2.5 (Yellow-Green)
+          let finalColor;
+          if (strain <= 1.0) {
+              finalColor = cLightGray;
+          } else if (strain < 1.5) {
+              const t = (strain - 1.0) / 0.5;
+              finalColor = this._lerpColor(cLightGray, cBronze, t);
+          } else if (strain < 3.0) {
+              const t = (strain - 1.5) / 1.5;
+              finalColor = this._lerpColor(cBronze, cYellowGre, Math.min(t, 1.0));
+          } else {
+              finalColor = cYellowGre;
+          }
+
+          ctx.fillStyle = `hsl(${finalColor.h}, ${finalColor.s}%, ${finalColor.l}%)`;
           ctx.fill();
 
-          // Outer hard edge (Bronze highlights / weathering)
-          ctx.lineWidth = 1.5;
-          ctx.strokeStyle = plateEdge;
+          // Stroke Edge 
+          ctx.lineWidth = 1.0;
+          ctx.strokeStyle = `hsl(${palette[3].h}, ${palette[3].s}%, ${palette[3].l}%)`; // Deep Green outline
           ctx.stroke();
       }
-
     }
   });
 }
