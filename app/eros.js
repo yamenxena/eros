@@ -476,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHarmony();
 });
 
-// ── Method Selector (Category-Grouped) ────────────────────────
+// ── Method Selector (Collapsible Category-Grouped) ────────────
 function buildMethodSelector(methodTypeFilter = '2d') {
   const container = document.getElementById('method-cards');
   container.innerHTML = '';
@@ -486,12 +486,12 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     return methodTypeFilter === '3d' ? is3D : !is3D;
   });
 
-  // Category definitions with display order
+  // Category definitions with display order and icons
   const categoryConfig = [
-    { key: 'architectural', label: '◼ Architectural', ids: ['edifice', 'xylem'] },
-    { key: 'botanical',     label: '◼ Botanical',     ids: ['ailanthus'] },
-    { key: 'muqarnas',      label: '◼ Muqarnas',      ids: ['muqarnas', 'hansmeyer'] },
-    { key: 'generative',    label: '◼ Generative',    ids: [] }, // Catch-all
+    { key: 'architectural', label: '▾ Architectural', icon: '◼', ids: ['edifice', 'xylem'] },
+    { key: 'botanical',     label: '▾ Botanical',     icon: '◼', ids: ['ailanthus'] },
+    { key: 'muqarnas',      label: '▾ Muqarnas',      icon: '◼', ids: ['muqarnas', 'hansmeyer', 'sakkal', 'anadol', 'fornes', 'oxman', 'gyroid'] },
+    { key: 'generative',    label: '▾ Generative',    icon: '◼', ids: [] }, // Catch-all
   ];
 
   // Assign methods to categories
@@ -499,7 +499,6 @@ function buildMethodSelector(methodTypeFilter = '2d') {
   for (const cat of categoryConfig) categorized.set(cat.key, []);
 
   for (const method of methods) {
-    // Check explicit category field first
     const explicitCat = method.category;
     let placed = false;
 
@@ -509,7 +508,6 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     }
     
     if (!placed) {
-      // Check if method ID is in a category's explicit list
       for (const cat of categoryConfig) {
         if (cat.ids.includes(method.id)) {
           categorized.get(cat.key).push(method);
@@ -520,17 +518,21 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     }
 
     if (!placed) {
-      // Default to generative
       categorized.get('generative').push(method);
     }
   }
 
-  // Sort within each category: prioritize Edifice/Xylem, then alphabetical
+  // Sort within each category
   const getPriority = (id) => {
     if (id === 'edifice') return 1;
     if (id === 'xylem') return 2;
-    if (id === 'hansmeyer') return 1; // First in muqarnas
-    if (id === 'muqarnas') return 2;
+    if (id === 'hansmeyer') return 1;
+    if (id === 'sakkal') return 2;
+    if (id === 'muqarnas') return 3;
+    if (id === 'anadol') return 4;
+    if (id === 'fornes') return 5;
+    if (id === 'oxman') return 6;
+    if (id === 'gyroid') return 7;
     return 99;
   };
 
@@ -542,21 +544,72 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     });
   }
 
+  // Load collapsed state from sessionStorage
+  const getCollapsed = (key) => {
+    try { return sessionStorage.getItem(`eros-cat-${key}`) === '1'; } catch(e) { return false; }
+  };
+  const setCollapsed = (key, val) => {
+    try { sessionStorage.setItem(`eros-cat-${key}`, val ? '1' : '0'); } catch(e) {}
+  };
+
   let firstMethod = null;
 
-  // Render categories
+  // Render collapsible categories
   for (const cat of categoryConfig) {
     const list = categorized.get(cat.key);
     if (list.length === 0) continue;
 
-    // Category header
+    let collapsed = getCollapsed(cat.key);
+
+    // Category header (clickable to toggle)
     const header = document.createElement('div');
     header.className = 'method-category-header';
-    header.textContent = cat.label;
-    header.style.cssText = 'font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--accent,#ff6b35); padding:12px 10px 4px; font-weight:700; cursor:default; user-select:none; opacity:0.85;';
+    header.setAttribute('data-cat', cat.key);
+    const updateHeaderText = (isCollapsed) => {
+      const arrow = isCollapsed ? '▸' : '▾';
+      header.textContent = `${arrow} ${cat.key.charAt(0).toUpperCase() + cat.key.slice(1)}`;
+      const badge = document.createElement('span');
+      badge.textContent = ` (${list.length})`;
+      badge.style.cssText = 'opacity:0.5; font-size:9px;';
+      header.appendChild(badge);
+    };
+    updateHeaderText(collapsed);
+
+    header.style.cssText = `
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--accent, #ff6b35); padding: 10px 10px 4px;
+      font-weight: 700; cursor: pointer; user-select: none; opacity: 0.85;
+      transition: opacity 0.15s;
+    `.replace(/\n/g, '');
+    header.addEventListener('mouseenter', () => header.style.opacity = '1');
+    header.addEventListener('mouseleave', () => header.style.opacity = '0.85');
+
     container.appendChild(header);
 
-    // Method cards
+    // Cards container (collapsible)
+    const cardsWrap = document.createElement('div');
+    cardsWrap.className = 'method-category-cards';
+    cardsWrap.style.cssText = `
+      overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease;
+      max-height: ${collapsed ? '0px' : (list.length * 100) + 'px'};
+      opacity: ${collapsed ? '0' : '1'};
+    `.replace(/\n/g, '');
+
+    // Toggle handler
+    header.addEventListener('click', () => {
+      collapsed = !collapsed;
+      setCollapsed(cat.key, collapsed);
+      updateHeaderText(collapsed);
+      if (collapsed) {
+        cardsWrap.style.maxHeight = '0px';
+        cardsWrap.style.opacity = '0';
+      } else {
+        cardsWrap.style.maxHeight = (list.length * 100) + 'px';
+        cardsWrap.style.opacity = '1';
+      }
+    });
+
+    // Method cards inside collapsible container
     for (const method of list) {
       if (!firstMethod) firstMethod = method;
       const card = document.createElement('div');
@@ -567,8 +620,9 @@ function buildMethodSelector(methodTypeFilter = '2d') {
         <div class="method-card-desc">${method.description}</div>
       `;
       card.addEventListener('click', () => switchMethod(method.id));
-      container.appendChild(card);
+      cardsWrap.appendChild(card);
     }
+    container.appendChild(cardsWrap);
   }
   
   if (firstMethod) {
