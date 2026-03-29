@@ -95,10 +95,10 @@ if (typeof MethodRegistry !== 'undefined') {
       if (params.paletteMode === 'Palette Mapped' && window.ErosState && ErosState.palette) {
           const c = ErosState.palette.colors;
           if (c.length >= 4) {
-              bg = c[0];
-              strokeCol = c[1];
-              fillBase = c[2];
-              fillHighlight = c[c.length-1];
+              bg = `hsl(${c[0].h}, ${c[0].s}%, ${c[0].l}%)`;
+              strokeCol = `hsl(${c[1].h}, ${c[1].s}%, ${c[1].l}%)`;
+              fillBase = `hsl(${c[2].h}, ${c[2].s}%, ${c[2].l}%)`;
+              fillHighlight = `hsl(${c[c.length-1].h}, ${c[c.length-1].s}%, ${c[c.length-1].l}%)`;
           }
       }
 
@@ -145,7 +145,7 @@ if (typeof MethodRegistry !== 'undefined') {
                   // Simplex noise evaluated at radial coordinates
                   const nx = seed.noiseOffset + Math.cos(theta) * 0.5;
                   const ny = seed.noiseOffset + Math.sin(theta) * 0.5;
-                  nDiag = simplex.noise2D(nx, ny) * params.noiseImpact * 0.3; // +-30% variation
+                  nDiag = simplex.noise2(nx, ny) * params.noiseImpact * 0.3; // +-30% variation
               } else if (params.noiseImpact > 0) {
                   nDiag = (Math.random() - 0.5) * params.noiseImpact * 0.5; // fallback
               }
