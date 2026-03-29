@@ -9,8 +9,24 @@ if (typeof MethodRegistry !== 'undefined') {
     id: 'ailanthus',
     name: 'Ailanthus Bark (2D)',
     type: '2d',
+    version: '1.0.0',
     description: 'Cellular growth simulation of Ailanthus altissima bark pattern.',
-    parameters: [
+    
+    palettes: [
+      {
+        name: 'Ailanthus Nature', mood: 'Biological',
+        colors: [
+          { h: 80, s: 18, l: 10 },
+          { h: 80, s: 11, l: 16 },
+          { h: 70, s: 7,  l: 40 },
+          { h: 42, s: 15, l: 48 },
+          { h: 68, s: 13, l: 80 },
+          { h: 68, s: 12, l: 90 }
+        ]
+      }
+    ],
+
+    params: [
       { key: 'growthTimeline',  type: 'range',   label: 'Growth Timeline',  default: 0.6,   min: 0.0, max: 1.0, precision: 2, category: 'Physics' },
       { key: 'cellularDensity', type: 'range',   label: 'Cell Density',     default: 40,    min: 10,  max: 100, precision: 0, category: 'Physics' },
       { key: 'anisotropy',      type: 'range',   label: 'Anisotropy',       default: 2.2,   min: 1.0, max: 4.0, precision: 2, category: 'Physics' },
@@ -20,6 +36,9 @@ if (typeof MethodRegistry !== 'undefined') {
       
       { key: 'paletteMode',     type: 'select',  label: 'Color Theme',      default: 'Ailanthus Nature', options: ['Ailanthus Nature', 'Palette Mapped'], category: 'Materials' }
     ],
+
+    narrative(p) { return `Cellular growth simulation of spongy parenchyma bursting through dead suberin, evaluated over time (t=${p.growthTimeline}) to form biological reticulations.`; },
+    equation(p) { return `P(x,y,t) = R_0 \\times t \\times C_{aniso}`; },
     
     _seeds: null,
     _lastDensity: null,
