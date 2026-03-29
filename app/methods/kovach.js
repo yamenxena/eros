@@ -1,17 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════
    Eros v5 — Method: Kovach (v1.0 - Ontological & Mereological Tectonics)
    Strict compliance with art-heuristics-v2.md
-   - Int8 N-Descending Packing (The Pack)
+   - Int8 N-Descending Packing (The Pack) - Optimized O(1) early break
    - Pre-Displacement Clamping (The Enclosure)
    - Inverse-Square Repulsors & Affine Squish/Sharp (The Net)
-   - Fourth-Order Runge-Kutta Integration (The Hatch)
-   - Multiplicative Analog Render (Level 5)
+   - Fourth-Order Runge-Kutta Integration (The Hatch) - Inline hyper-optimized
+   - Multiplicative Analog Render (Level 5) - Normalized mass density scaling
    ═══════════════════════════════════════════════════════════════ */
 
 MethodRegistry.register({
   id: 'kovach',
   name: 'Kovach (Mereology)',
-  version: '1.0.0',
+  version: '1.0.1',
   type: '2d',
   description: 'Pure ontological mereology: N-Descending Int8 matrix bounds subjected to inverse-square torsion and RK4 fractional integration layers. Zero Perlin noise.',
 
@@ -48,11 +48,11 @@ MethodRegistry.register({
   params: [
     { key: 'seed', type: 'number', label: 'Hash Seed', category: 'Method', default: 42, min: 1, max: 999999 },
     { key: 'gridCols', type: 'range', label: 'Grid Matrix (Cols)', category: 'Method', default: 60, min: 20, max: 120, precision: 0 },
-    { key: 'maxScale', type: 'range', label: 'Max Monolith Size', category: 'Method', default: 25, min: 5, max: 50, precision: 0 },
+    { key: 'maxScale', type: 'range', label: 'Max Monolith Size', category: 'Method', default: 20, min: 5, max: 40, precision: 0 },
     
     // Physics Config
     { key: 'repulsors', type: 'range', label: 'Torsion Generators', category: 'Physics', default: 12, min: 0, max: 40, precision: 0 },
-    { key: 'squish', type: 'range', label: 'Affine Squish Intensity', category: 'Physics', default: 0.08, min: 0.0, max: 0.3, precision: 2 },
+    { key: 'squish', type: 'range', label: 'Affine Squish Intensity', category: 'Physics', default: 0.1, min: 0.0, max: 0.3, precision: 2 },
     
     // Hatch/Render Config
     { key: 'lineDensity', type: 'range', label: 'Hatch Density Mult', category: 'Render', default: 1.0, min: 0.1, max: 4.0, precision: 2 },
@@ -63,22 +63,23 @@ MethodRegistry.register({
   narrative(p) {
     return `Governed by pure ontological mereology, a ${p.gridCols}x${p.gridCols} grid is aggressively partitioned using N-Descending packing (max monolith ${p.maxScale}). ` +
       `Space is literally distorted by affine matrices and ${p.repulsors} inverse-square repulsors. ` +
-      `Continuous boundaries enforce absolute topological clipping, while plotting forces are calculated exclusively through Fourth-Order Runge-Kutta (RK4) integration lacking all Perlin noise. ` +
-      `Pigments emulate a distressed mechanical plotter.`;
+      `Continuous boundaries enforce absolute topological clipping, while plotting forces are calculated exclusively through inline Fourth-Order Runge-Kutta (RK4) integration lacking all Perlin noise. ` +
+      `Pigments emulate a distressed mechanical plotter via mass-based density scaling.`;
   },
 
   equation(p) {
     return `Level 1 [Pack]: Int8Array. Iter(N=max->1). Failure Threshold: p > 0.42\n` +
       `Level 2 [Bound]: If pt ∉ Box[x0, x1], V=0\n` +
       `Level 3 [Force]: F = m / (15.0 + r²), Shear = f(y parity)\n` +
-      `Level 4 [RK4]: dx/dt = cos(φ) + sin(y*k), x_{n+1} = x_n + h/6*(k1 + 2k2 + 2k3 + k4)` ;
+      `Level 4 [RK4]: dx/dt = cos(φ) + sin(y*k), x_n = RK4(h/6)\n` + 
+      `Level 5 [Render]: TotalLines ∝ 80k * ArrayRatio * Min(8, 8/√mass)`;
   },
 
   // ═══════════════════════════════════════════════════════════════
   // MAIN RENDER LOOP 
   // ═══════════════════════════════════════════════════════════════
   render(canvas, ctx, W, H, params, palette) {
-    const prng = new window.PRNG(params.seed);
+    const prng = new PRNG(params.seed);
     const startT = performance.now();
 
     const padding = Math.min(W, H) * 0.08;
@@ -90,7 +91,7 @@ MethodRegistry.register({
 
     // 2. The Net (Repulsors)
     const repulsors = [];
-    for(let i=0; i<params.repulsors; i++){
+    for(let i=0; i < params.repulsors; i++){
         repulsors.push({
             x: padding + prng.next() * drawW,
             y: padding + prng.next() * drawH,
@@ -99,7 +100,7 @@ MethodRegistry.register({
     }
 
     // Canvas Basics
-    const bgColor = palette[palette.length - 1];
+    const bgColor = palette[palette.length - 1] || {h:0, s:0, l:100};
     ctx.fillStyle = `hsl(${bgColor.h}, ${bgColor.s}%, ${bgColor.l}%)`;
     ctx.fillRect(0, 0, W, H);
     this._addGrain(ctx, W, H, prng);
@@ -112,10 +113,9 @@ MethodRegistry.register({
 
     let totalStrokes = 0;
 
-    // For every sovereign mereological object
-    // Map grid coords to pixel coords
     const cellW = drawW / params.gridCols;
     const cellH = drawH / params.gridCols;
+    const totalMatrixCells = params.gridCols * params.gridCols;
 
     for (let enc of enclosures) {
         const rx = padding + enc.gx * cellW;
@@ -132,12 +132,18 @@ MethodRegistry.register({
 
         if(bounds.endX <= bounds.startX || bounds.endY <= bounds.startY) continue;
 
-        // Density is inversely proportional to square root of mass
+        // Stable mathematical normalization preventing infinite loops
         const structuralMass = enc.gw * enc.gh; 
-        // 12000 lines scaled by density config and mass
-        const lineCount = Math.floor((12000 / Math.sqrt(structuralMass)) * prng.next() * params.lineDensity);
+        const cellRatio = structuralMass / totalMatrixCells;
+        const baseLines = 80000 * cellRatio; 
 
-        const col = palette[enc.colIdx];
+        // Inverse micro-shrapnel boost (1x scaling for large blocks, up to 8x density for tiny chunks)
+        const densityBoost = Math.max(1, Math.min(8, 8 / Math.sqrt(structuralMass)));
+        const lineCount = Math.floor(baseLines * densityBoost * prng.next() * params.lineDensity);
+
+        const colIdx = Math.min(enc.colIdx, palette.length - 2);
+        const col = palette[Math.max(0, colIdx)];
+        
         // Brutalist Analog Pigment
         ctx.strokeStyle = `hsla(${col.h}, ${col.s}%, ${col.l}%, 0.05)`;
 
@@ -145,21 +151,17 @@ MethodRegistry.register({
         for(let i = 0; i < lineCount; i++) {
             totalStrokes++;
 
-            // Start locally inside the enclosure
             let lx = bounds.startX + prng.next() * (bounds.endX - bounds.startX);
             let ly = bounds.startY + prng.next() * (bounds.endY - bounds.startY);
 
-            // Warp initial point 
             let warpedStart = this._applyMereologicalDisplacement(lx, ly, W/2, H/2, repulsors, params.squish);
             ctx.moveTo(warpedStart.x, warpedStart.y);
 
-            // Integration Loop
             let TDA_bettiThreshold = 0;
-            let lastDist = 0;
 
             for(let step = 0; step < params.integSteps; step++) {
                 // RK4 Spatial Step
-                let nextPos = this._rk4Step(lx, ly, enc.phase, params.stepSize);
+                let nextPos = this._rk4StepInline(lx, ly, enc.phase, params.stepSize);
                 
                 let dx = nextPos.nx - lx;
                 let dy = nextPos.ny - ly;
@@ -168,25 +170,21 @@ MethodRegistry.register({
                 lx = nextPos.nx;
                 ly = nextPos.ny;
 
-                // TDA: Check for cyclic loops (infinite density trap)
-                // If the stroke barely moves in a step, it's trapped in a topological zero-hole
+                // TDA: Detect infinite phase traps
                 if(stepDist < 0.001) TDA_bettiThreshold++;
-                if(TDA_bettiThreshold > 3) break; // Terminate early to prevent "unknown unknown" blob
+                if(TDA_bettiThreshold > 3) break; 
 
-                // The Enclosure: Absolute Pre-Displacement Clamp (Sticky Modern Edge)
+                // The Enclosure: Pre-Displacement Clamp
                 if (lx < bounds.startX) { lx = bounds.startX; }
                 if (lx > bounds.endX)   { lx = bounds.endX; }
                 if (ly < bounds.startY) { ly = bounds.startY; }
                 if (ly > bounds.endY)   { ly = bounds.endY; }
-
-                // Stop drawing if we hit the edge? 
-                // Or let it slide along the edge? Kovach allows sliding to build up dark fault lines!
                 
                 // Route through Global Affine warp
                 let warpedPoint = this._applyMereologicalDisplacement(lx, ly, W/2, H/2, repulsors, params.squish);
                 ctx.lineTo(warpedPoint.x, warpedPoint.y);
                 
-                // If perfectly clamped at corner trap, terminate early for efficiency
+                // Perfect trap termination
                 if((lx === bounds.startX || lx === bounds.endX) && (ly === bounds.startY || ly === bounds.endY)) {
                     break;
                 }
@@ -213,7 +211,6 @@ MethodRegistry.register({
     const grid = new Int8Array(cols * rows);
     const enclosures = [];
 
-    // Iterating backwards from massive structs to micro-dust
     for (let N = maxScale; N >= 1; N--) {
         for (let i = 0; i < cols * rows; i++) {
             if (grid[i] !== 0) continue;
@@ -221,20 +218,23 @@ MethodRegistry.register({
             const x = i % cols;
             const y = Math.floor(i / cols);
 
-            // Dimensional fit check
             if (x + N <= cols && y + N <= rows) {
                 let valid = true;
+                // Optimized matrix overlap check
                 for (let dy = 0; dy < N; dy++) {
                     for (let dx = 0; dx < N; dx++) {
-                        if (grid[(y + dy) * cols + (x + dx)] !== 0) valid = false;
+                        if (grid[(y + dy) * cols + (x + dx)] !== 0) {
+                            valid = false; break;
+                        }
                     }
+                    if (!valid) break;
                 }
 
-                // Inject destructive flaw: PRNG forces imperfect packing to make architectural asymmetry
                 if (valid && (prng.next() > 0.42 || N === 1)) {
                     for (let dy = 0; dy < N; dy++) {
+                        let rowOffset = (y + dy) * cols;
                         for (let dx = 0; dx < N; dx++) {
-                            grid[(y + dy) * cols + (x + dx)] = 1;
+                            grid[rowOffset + (x + dx)] = 1;
                         }
                     }
                     enclosures.push({
@@ -256,7 +256,6 @@ MethodRegistry.register({
     let dx = px - cx;
     let dy = py - cy;
 
-    // Torsion logic: Inverse-square gravitational effects
     let torsionX = 0;
     let torsionY = 0;
     for (let i = 0; i < repulsors.length; i++) {
@@ -264,13 +263,11 @@ MethodRegistry.register({
         let ry = py - repulsors[i].y;
         let distSq = rx * rx + ry * ry;
 
-        // F = m / (epsilon + r^2)
         let force = repulsors[i].mass / (15.0 + distSq);
         torsionX += rx * force;
         torsionY += ry * force;
     }
 
-    // Affine 'Squish/Sharp' Logic: Parity-based horizontal shear
     const rowParity = Math.floor(py * 0.04) % 2;
     const squishScale = (rowParity === 0) ? (1.0 + squishForce) : (1.0 - squishForce);
 
@@ -283,23 +280,33 @@ MethodRegistry.register({
   // ═══════════════════════════════════════════════════════════════
   // 3. THE HATCH (Fourth-Order Runge-Kutta Vector Integration)
   // ═══════════════════════════════════════════════════════════════
-  _rk4Step(x, y, phase, stepSize) {
-    const derivative = (lx, ly) => {
-        return {
-            vx: Math.cos(phase) + Math.sin(ly * 0.02),
-            vy: Math.sin(phase) + Math.cos(lx * 0.02)
-        };
-    };
+  _rk4StepInline(x, y, phase, stepSize) {
+      // Memory-optimized inline RK4 solving. Replaces slow closure creation inside inner loops.
+      const cosP = Math.cos(phase);
+      const sinP = Math.sin(phase);
+      
+      const v1x = cosP + Math.sin(y * 0.02);
+      const v1y = sinP + Math.cos(x * 0.02);
 
-    const k1 = derivative(x, y);
-    const k2 = derivative(x + 0.5 * stepSize * k1.vx, y + 0.5 * stepSize * k1.vy);
-    const k3 = derivative(x + 0.5 * stepSize * k2.vx, y + 0.5 * stepSize * k2.vy);
-    const k4 = derivative(x + stepSize * k3.vx, y + stepSize * k3.vy);
+      const px2 = x + 0.5 * stepSize * v1x;
+      const py2 = y + 0.5 * stepSize * v1y;
+      const v2x = cosP + Math.sin(py2 * 0.02);
+      const v2y = sinP + Math.cos(px2 * 0.02);
 
-    return {
-        nx: x + (stepSize / 6.0) * (k1.vx + 2.0 * k2.vx + 2.0 * k3.vx + k4.vx),
-        ny: y + (stepSize / 6.0) * (k1.vy + 2.0 * k2.vy + 2.0 * k3.vy + k4.vy)
-    };
+      const px3 = x + 0.5 * stepSize * v2x;
+      const py3 = y + 0.5 * stepSize * v2y;
+      const v3x = cosP + Math.sin(py3 * 0.02);
+      const v3y = sinP + Math.cos(px3 * 0.02);
+
+      const px4 = x + stepSize * v3x;
+      const py4 = y + stepSize * v3y;
+      const v4x = cosP + Math.sin(py4 * 0.02);
+      const v4y = sinP + Math.cos(px4 * 0.02);
+
+      return {
+          nx: x + (stepSize / 6.0) * (v1x + 2.0 * v2x + 2.0 * v3x + v4x),
+          ny: y + (stepSize / 6.0) * (v1y + 2.0 * v2y + 2.0 * v3y + v4y)
+      };
   },
 
   _addGrain(ctx, W, H, prng) {
