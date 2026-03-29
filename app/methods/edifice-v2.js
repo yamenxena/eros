@@ -58,16 +58,19 @@ MethodRegistry.register({
 
     // Level 2/3: The Enclosure & Forces
     { key: 'boundStyle', type: 'select', label: 'Style (Enclosure)', default: 'Modern (Sticky)', options: ['Modern (Sticky)', 'Explosive (Bounce)'], category: 'Physics' },
-    { key: 'expCount', type: 'range', label: 'Explosion Amount', default: 15, min: 0, max: 100, precision: 0, category: 'Physics' },
+    { key: 'expCount', type: 'range', label: 'Explosion Amount', default: 0, min: 0, max: 100, precision: 0, category: 'Physics' },
     { key: 'expPos', type: 'select', label: 'Explosion Source', default: 'Random', options: ['Random', 'Corners', 'Edges', 'Central'], category: 'Physics' },
     { key: 'interference', type: 'range', label: 'Interference Rad', default: 450, min: 50, max: 1500, precision: 0, category: 'Physics' },
-    { key: 'displacement', type: 'select', label: 'Displacement Type', default: 'Sharp', options: ['None', 'Twist', 'Sharp', 'Shift'], category: 'Physics' },
+    { key: 'displacement', type: 'select', label: 'Displacement Type', default: 'None', options: ['None', 'Twist', 'Sharp', 'Shift'], category: 'Physics' },
     
     // Level 4/5: The Hatch & Texture
     { key: 'texture', type: 'select', label: 'Texture Style', default: 'Hatched', options: ['Lattice', 'Hatched', 'Sqribble'], category: 'Render' },
-    { key: 'outlineColor', type: 'select', label: 'Grid Color', default: 'White', options: ['White', 'Black', 'Palette Color'], category: 'Render' },
+    { key: 'outlineColor', type: 'select', label: 'Grid Color', default: 'Black', options: ['Black', 'Transparent', 'White', 'Palette Color'], category: 'Render' },
+    { key: 'gridOutline', type: 'range', label: 'Grid Outline Thk', default: 1.0, min: 0.0, max: 15.0, precision: 1, category: 'Render' },
+    { key: 'meshSubdivs', type: 'range', label: 'Mesh Subdivision', default: 6.0, min: 1.0, max: 30.0, precision: 1, category: 'Render' },
     { key: 'lineWeight', type: 'range', label: 'Ink Pen Size', default: 0.60, min: 0.1, max: 3.0, precision: 2, category: 'Render' },
     { key: 'lineAlpha', type: 'range', label: 'Ink Alpha', default: 0.85, min: 0.05, max: 1.0, precision: 2, category: 'Render' },
+    { key: 'grainIntensity', type: 'range', label: 'Canvas Grain', default: 10, min: 0, max: 50, precision: 0, category: 'Render' },
   ],
 
   narrative(p) {
@@ -105,7 +108,9 @@ MethodRegistry.register({
     const bgColor = palette[palette.length - 1]; // Light paper is usually last
     ctx.fillStyle = `hsl(${bgColor.h}, ${bgColor.s}%, ${bgColor.l}%)`;
     ctx.fillRect(0, 0, W, H);
-    this._addGrain(ctx, W, H, prng);
+    if (params.grainIntensity > 0) {
+        this._addGrain(ctx, W, H, prng, params.grainIntensity);
+    }
 
     // Render configuration
     ctx.globalCompositeOperation = 'multiply';
@@ -118,14 +123,20 @@ MethodRegistry.register({
     const cellH = drawH / params.gridCols;
 
     const palLen = Math.max(1, palette.length - 1);
+    const halfG = params.gridOutline / 2;
 
     // ── 4. The Hatch (Process each Enclosure Mesh) ───
     for (let enc of enclosures) {
+      let outX = padding + enc.gx * cellW;
+      let outY = padding + enc.gy * cellH;
+      let outW = enc.gw * cellW;
+      let outH = enc.gh * cellH;
+
       const rect = {
-         x: padding + enc.gx * cellW + 1.0, // slight 1px margin
-         y: padding + enc.gy * cellH + 1.0,
-         w: enc.gw * cellW - 2.0,
-         h: enc.gh * cellH - 2.0
+         x: outX + halfG,
+         y: outY + halfG,
+         w: outW - params.gridOutline,
+         h: outH - params.gridOutline
       };
 
       if (rect.w < 2 || rect.h < 2) continue;
@@ -135,11 +146,11 @@ MethodRegistry.register({
       const col = palette[colIdx];
 
       // Build 2D Cloth Mesh according to Texture Mode
-      const cloth = this._buildClothMesh(rect, params.texture, prng);
+      const cloth = this._buildClothMesh(rect, params.texture, prng, params.meshSubdivs);
       if (cloth.nodes.length === 0) continue;
 
       // Draw Grid Outline (The 2D Web boundaries)
-      if (params.gridOutline > 0) {
+      if (params.gridOutline > 0 && params.outlineColor !== 'Transparent') {
         ctx.globalCompositeOperation = 'source-over';
         if (params.outlineColor === 'White') {
            ctx.strokeStyle = '#FFFFFF';
@@ -149,7 +160,7 @@ MethodRegistry.register({
            ctx.strokeStyle = `hsl(${col.h}, ${col.s}%, ${Math.max(10, col.l - 20)}%)`; 
         }
         ctx.lineWidth = params.gridOutline;
-        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.strokeRect(outX, outY, outW, outH);
         ctx.globalCompositeOperation = 'multiply';
       }
 
@@ -298,9 +309,10 @@ MethodRegistry.register({
     return pool;
   },
 
-  _buildClothMesh(rect, textureMode, prng) {
+  _buildClothMesh(rect, textureMode, prng, meshSubdivs) {
     // Hatched texture demands much higher line density
-    let densityPixels = textureMode === 'Hatched' ? 3.0 : 8.0; 
+    let densityPixels = textureMode === 'Hatched' ? meshSubdivs / 2.0 : meshSubdivs; 
+    densityPixels = Math.max(1.0, densityPixels);
     
     if (rect.w < densityPixels * 2) return { nodes: [], links: [] };
 
@@ -481,11 +493,11 @@ MethodRegistry.register({
     ctx.stroke();
   },
 
-  _addGrain(ctx, W, H, prng) {
+  _addGrain(ctx, W, H, prng, intensity) {
     const id = ctx.getImageData(0, 0, W, H);
     const d = id.data;
     for (let i = 0; i < d.length; i += 4) {
-      const noise = (prng.next() - 0.5) * 15;
+      const noise = (prng.next() - 0.5) * intensity;
       d[i] += noise; d[i + 1] += noise; d[i + 2] += noise;
     }
     ctx.putImageData(id, 0, 0);
