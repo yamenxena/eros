@@ -538,9 +538,9 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     });
   }
 
-  // Load collapsed state from sessionStorage
+  // Load collapsed state from sessionStorage (default: true -> collapsed)
   const getCollapsed = (key) => {
-    try { return sessionStorage.getItem(`eros-cat-${key}`) === '1'; } catch(e) { return false; }
+    try { return sessionStorage.getItem(`eros-cat-${key}`) !== '0'; } catch(e) { return true; }
   };
   const setCollapsed = (key, val) => {
     try { sessionStorage.setItem(`eros-cat-${key}`, val ? '1' : '0'); } catch(e) {}
@@ -585,7 +585,7 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     cardsWrap.className = 'method-category-cards';
     cardsWrap.style.cssText = `
       overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease;
-      max-height: ${collapsed ? '0px' : (list.length * 100) + 'px'};
+      max-height: ${collapsed ? '0px' : '5000px'};
       opacity: ${collapsed ? '0' : '1'};
     `.replace(/\n/g, '');
 
@@ -598,7 +598,7 @@ function buildMethodSelector(methodTypeFilter = '2d') {
         cardsWrap.style.maxHeight = '0px';
         cardsWrap.style.opacity = '0';
       } else {
-        cardsWrap.style.maxHeight = (list.length * 100) + 'px';
+        cardsWrap.style.maxHeight = '5000px';
         cardsWrap.style.opacity = '1';
       }
     });
@@ -612,8 +612,14 @@ function buildMethodSelector(methodTypeFilter = '2d') {
       card.innerHTML = `
         <div class="method-card-name">${method.name}</div>
         <div class="method-card-desc">${method.description}</div>
+        <div class="method-card-params" id="params-${method.id}" style="display:none; padding-top: 10px; padding-bottom: 5px; cursor: default;"></div>
       `;
-      card.addEventListener('click', () => switchMethod(method.id));
+      // Prevent clicking params from switching methods repeatedly
+      card.addEventListener('click', (e) => {
+        if (!e.target.closest('.method-card-params')) {
+          switchMethod(method.id);
+        }
+      });
       cardsWrap.appendChild(card);
     }
     container.appendChild(cardsWrap);
@@ -623,7 +629,6 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     switchMethod(firstMethod.id);
   } else {
     state.methodId = null;
-    document.getElementById('param-container').innerHTML = '';
   }
 }
 
@@ -643,7 +648,13 @@ function switchMethod(methodId) {
   }
 
   document.querySelectorAll('.method-card').forEach(c => {
-    c.classList.toggle('active', c.dataset.id === methodId);
+    const isActive = (c.dataset.id === methodId);
+    c.classList.toggle('active', isActive);
+    const paramBox = c.querySelector('.method-card-params');
+    if (paramBox) {
+      paramBox.style.display = isActive ? 'block' : 'none';
+      if (!isActive) paramBox.innerHTML = ''; // clear others
+    }
   });
 
   // Sync canvas size inputs to method dimensions
@@ -656,14 +667,18 @@ function switchMethod(methodId) {
   doRender();
 
   // Scroll params into view so they're always visible after method switch
-  const paramEl = document.getElementById('param-container');
-  if (paramEl) setTimeout(() => paramEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+  const activeCard = document.querySelector(`.method-card[data-id="${methodId}"]`);
+  if (activeCard) setTimeout(() => activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
 }
 
 // ── Dynamic Sidebar Builder ───────────────────────────────────
 function buildParamSidebar(method) {
-  const container = document.getElementById('param-container');
+  const container = document.getElementById(`params-${method.id}`);
+  if (!container) return;
   container.innerHTML = '';
+  
+  // Stop clicks inside params from bubbling up to the card handler
+  container.onclick = (e) => e.stopPropagation();
   
   if (!method.params || method.params.length === 0) return;
 

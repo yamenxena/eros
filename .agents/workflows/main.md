@@ -24,6 +24,7 @@ This is the controlling workflow for all Eros sessions. Every session follows th
 1. Validate parameters against guardrails (`.agents/config/guardrails.md`)
 2. Estimate render time — warn if > 60s
 3. Confirm resource limits (resolution, particle count, iterations)
+4. Confirm: Do not test the UI using the browser subagent (Chrome) unless explicitly requested.
 
 ## 4. Generate
 

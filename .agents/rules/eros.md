@@ -47,6 +47,7 @@ Generate complex, beautiful, iterative art through the composition of mathematic
 3. **No hallucinated capabilities:** If an engine can't produce a requested effect, say so — don't fake it
 4. **Resource awareness:** Report estimated render time before starting long generation tasks
 5. **Iterative by default:** Always offer to iterate on any generated output
+6. **No unauthorized browser testing:** Never test the application UI in a browser subagent (Chrome) unless explicitly requested by the user.
 
 ---
 
