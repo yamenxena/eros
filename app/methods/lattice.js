@@ -254,10 +254,6 @@ MethodRegistry.register({
       const colIdx = Math.floor(Math.pow(weight, 0.7) * palLen);
       const col = palette[Math.min(colIdx, palLen - 1)];
 
-      // ── FILL rectangle container with color (the visible "stripe") ──
-      ctx.fillStyle = `hsla(${col.h}, ${col.s}%, ${col.l}%, 0.92)`;
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-
       // Build net mesh
       const densityMult = isHatched ? 0.5 : 1.0; // Hatched = denser net
       const cloth = this._buildNet(rect, densityMult);
@@ -282,11 +278,8 @@ MethodRegistry.register({
         this._displace(cloth.nodes, params.displacement, W, H, prng);
       }
 
-      // ── Render mesh lines ON TOP of filled rect ──
-      // Use a darker/more contrasted version of the same color for mesh lines
-      const meshL = Math.max(5, col.l - 20);
-      const meshS = Math.min(100, col.s + 10);
-      ctx.strokeStyle = `hsla(${col.h}, ${meshS}%, ${meshL}%, 0.85)`;
+      // Render
+      ctx.strokeStyle = `hsla(${col.h}, ${col.s}%, ${col.l}%, 0.88)`;
       this._renderNet(ctx, cloth, isHatched);
 
       totalNodes += cloth.nodes.length;
