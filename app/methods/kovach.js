@@ -57,10 +57,11 @@ MethodRegistry.register({
     { key: 'squish', type: 'range', label: 'Affine Squish Intensity', category: 'Physics', default: 0.05, min: 0.0, max: 0.3, precision: 3 },
     
     // Hatch/Render Config (Well-scaled integers/floats)
-    { key: 'lineDensity', type: 'range', label: 'Hatch Density Mult', category: 'Render', default: 0.5, min: 0.1, max: 3.0, precision: 2 },
-    { key: 'strokeWeight', type: 'range', label: 'Pen Tip Size (px)', category: 'Render', default: 0.25, min: 0.05, max: 1.5, precision: 2 },
-    { key: 'integSteps', type: 'range', label: 'RK4 Steps per Plot', category: 'Render', default: 15, min: 5, max: 60, precision: 0 },
-    { key: 'stepSize', type: 'range', label: 'RK4 Step Size', category: 'Render', default: 2.0, min: 0.5, max: 5.0, precision: 1 },
+    { key: 'lineDensity', type: 'range', label: 'Hatch Density Mult', category: 'Render', default: 0.8, min: 0.1, max: 3.0, precision: 2 },
+    { key: 'strokeWeight', type: 'range', label: 'Pen Tip Size (px)', category: 'Render', default: 0.45, min: 0.05, max: 2.5, precision: 2 },
+    { key: 'strokeAlpha', type: 'range', label: 'Ink Opacity', category: 'Render', default: 0.45, min: 0.01, max: 1.0, precision: 2 },
+    { key: 'integSteps', type: 'range', label: 'RK4 Steps per Plot', category: 'Render', default: 35, min: 5, max: 150, precision: 0 },
+    { key: 'stepSize', type: 'range', label: 'RK4 Step Size', category: 'Render', default: 2.5, min: 0.5, max: 8.0, precision: 1 },
   ],
 
   narrative(p) {
@@ -138,16 +139,17 @@ MethodRegistry.register({
         // Stable mathematical normalization for simple baseline performance
         const structuralMass = enc.gw * enc.gh; 
         const cellRatio = structuralMass / totalMatrixCells;
-        const baseLines = 45000 * cellRatio; 
+        const baseLines = 85000 * cellRatio; 
 
         // Micro-shrapnel density boost
-        const densityBoost = Math.max(1, Math.min(6, 6 / Math.sqrt(structuralMass)));
+        const densityBoost = Math.max(1, Math.min(8, 6 / Math.sqrt(structuralMass)));
         const lineCount = Math.floor(baseLines * densityBoost * prng.next() * params.lineDensity);
 
         const colIdx = Math.min(enc.colIdx, palette.length - 2);
         const col = palette[Math.max(0, colIdx)];
         
-        ctx.strokeStyle = `hsla(${col.h}, ${col.s}%, ${col.l}%, 0.05)`;
+        // Use the dedicated Ink Opacity parameter instead of a static faint 0.05 blur
+        ctx.strokeStyle = `hsla(${col.h}, ${col.s}%, ${col.l}%, ${params.strokeAlpha})`;
 
         ctx.beginPath();
         for(let i = 0; i < lineCount; i++) {
