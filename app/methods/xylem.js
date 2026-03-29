@@ -160,10 +160,8 @@ if (typeof MethodRegistry !== 'undefined') {
           if (y + sliceH > H) sliceH = H - y;
 
           let widthSpan = colW;
-          if (isMainShape && sliceH < 60 && prng.next() > 0.7) {
-             let spanCols = Math.floor(prng.range(2, 4));
-             widthSpan = colW * Math.min(spanCols, numCols - c);
-          }
+          // Enforcement of strict architectural grid logic:
+          // We disable cross-column overlaps to prevent intersecting pixelRects.
           rects.push({ x, y, w: widthSpan, h: sliceH, id: rects.length });
           y += sliceH;
         }
