@@ -490,7 +490,7 @@ function buildMethodSelector(methodTypeFilter = '2d') {
   const categoryConfig = [
     { key: 'architectural', label: '▾ Architectural', icon: '◼', ids: ['edifice', 'xylem'] },
     { key: 'botanical',     label: '▾ Botanical',     icon: '◼', ids: ['ailanthus'] },
-    { key: 'muqarnas',      label: '▾ Muqarnas',      icon: '◼', ids: ['muqarnas', 'hansmeyer', 'sakkal', 'anadol', 'fornes', 'oxman', 'gyroid'] },
+    { key: 'muqarnas',      label: '▾ Muqarnas',      icon: '◼', ids: ['muqarnas'] },
     { key: 'generative',    label: '▾ Generative',    icon: '◼', ids: [] }, // Catch-all
   ];
 
@@ -526,13 +526,7 @@ function buildMethodSelector(methodTypeFilter = '2d') {
   const getPriority = (id) => {
     if (id === 'edifice') return 1;
     if (id === 'xylem') return 2;
-    if (id === 'hansmeyer') return 1;
-    if (id === 'sakkal') return 2;
-    if (id === 'muqarnas') return 3;
-    if (id === 'anadol') return 4;
-    if (id === 'fornes') return 5;
-    if (id === 'oxman') return 6;
-    if (id === 'gyroid') return 7;
+    if (id === 'muqarnas') return 1;
     return 99;
   };
 
@@ -660,6 +654,10 @@ function switchMethod(methodId) {
   buildPalettePanel();  // ← right panel
   buildAnimPanel();     // ← animation param list
   doRender();
+
+  // Scroll params into view so they're always visible after method switch
+  const paramEl = document.getElementById('param-container');
+  if (paramEl) setTimeout(() => paramEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
 }
 
 // ── Dynamic Sidebar Builder ───────────────────────────────────
