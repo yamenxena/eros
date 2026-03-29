@@ -246,6 +246,13 @@ const ErosEngine = {
     const method = MethodRegistry.get(methodId);
     if (!method) throw new Error(`Method '${methodId}' not found in registry`);
     this.activeMethod = method;
+    
+    // Apply method-specified dimensions or fallback to 1024
+    if (this.canvas) {
+      this.W = this.canvas.width = method.width || 1024;
+      this.H = this.canvas.height = method.height || 1024;
+    }
+    
     return method;
   },
 
