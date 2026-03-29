@@ -1,17 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════
-   Eros v5 — Method: Kovach (v1.0 - Ontological & Mereological Tectonics)
+   Eros v5 — Method: Kovach (v1.1 - Ontological & Mereological Tectonics)
    Strict compliance with art-heuristics-v2.md
    - Int8 N-Descending Packing (The Pack) - Optimized O(1) early break
    - Pre-Displacement Clamping (The Enclosure)
    - Inverse-Square Repulsors & Affine Squish/Sharp (The Net)
    - Fourth-Order Runge-Kutta Integration (The Hatch) - Inline hyper-optimized
-   - Multiplicative Analog Render (Level 5) - Normalized mass density scaling
+   - Multiplicative Analog Render (Level 5) - Taxonomy-driven Palettes
    ═══════════════════════════════════════════════════════════════ */
 
 MethodRegistry.register({
   id: 'kovach',
   name: 'Kovach (Mereology)',
-  version: '1.0.1',
+  version: '1.1.0',
   type: '2d',
   description: 'Pure ontological mereology: N-Descending Int8 matrix bounds subjected to inverse-square torsion and RK4 fractional integration layers. Zero Perlin noise.',
 
@@ -19,19 +19,19 @@ MethodRegistry.register({
     {
       name: 'Blueprint (Kovach)', mood: 'Architectural Decay',
       colors: [
-        { h: 216, s: 68, l: 20 },  // Deep Indigo Code
-        { h: 204, s: 62, l: 38 },  // Royal Blue Main
-        { h: 198, s: 58, l: 46 },  // Cerulean Shift
-        { h: 36, s: 20, l: 92 },   // Bleached Paper Cream (Background)
+        { h: 216, s: 68, l: 20 },  // 0: Micro-Shrapnel (Dark Tectonic Lines)
+        { h: 204, s: 62, l: 38 },  // 1: Macro-Monoliths (Main Support)
+        { h: 198, s: 58, l: 46 },  // 2: Mid-Scale Structures (Fill)
+        { h: 36, s: 20, l: 92 },   // 3: Bleached Paper Cream (Background)
       ]
     },
     {
       name: 'Graphite', mood: 'Carbon Scoring',
       colors: [
-        { h: 0, s: 5, l: 15 },   // Almost Black
-        { h: 0, s: 0, l: 30 },   // Heavy Grey
-        { h: 0, s: 0, l: 50 },   // Mid Grey
-        { h: 40, s: 10, l: 94 }, // Paper
+        { h: 0, s: 5, l: 15 },   // 0: Micro-Shrapnel
+        { h: 0, s: 0, l: 30 },   // 1: Macro-Monoliths
+        { h: 0, s: 0, l: 50 },   // 2: Mid-Scale Structures
+        { h: 40, s: 10, l: 94 }, // 3: Paper
       ]
     },
     {
@@ -45,26 +45,29 @@ MethodRegistry.register({
     }
   ],
 
+  // Parameters MUST start from simple foundational iterations (low grid sizes, fast integration)
   params: [
     { key: 'seed', type: 'number', label: 'Hash Seed', category: 'Method', default: 42, min: 1, max: 999999 },
-    { key: 'gridCols', type: 'range', label: 'Grid Matrix (Cols)', category: 'Method', default: 60, min: 20, max: 120, precision: 0 },
-    { key: 'maxScale', type: 'range', label: 'Max Monolith Size', category: 'Method', default: 20, min: 5, max: 40, precision: 0 },
+    // Simplified scaling for entry-level rendering
+    { key: 'gridCols', type: 'range', label: 'Grid Matrix (Cols)', category: 'Method', default: 30, min: 10, max: 100, precision: 0 },
+    { key: 'maxScale', type: 'range', label: 'Max Monolith Size', category: 'Method', default: 10, min: 2, max: 30, precision: 0 },
     
-    // Physics Config
-    { key: 'repulsors', type: 'range', label: 'Torsion Generators', category: 'Physics', default: 12, min: 0, max: 40, precision: 0 },
-    { key: 'squish', type: 'range', label: 'Affine Squish Intensity', category: 'Physics', default: 0.1, min: 0.0, max: 0.3, precision: 2 },
+    // Physics Config (Basic iterations)
+    { key: 'repulsors', type: 'range', label: 'Torsion Generators', category: 'Physics', default: 3, min: 0, max: 20, precision: 0 },
+    { key: 'squish', type: 'range', label: 'Affine Squish Intensity', category: 'Physics', default: 0.05, min: 0.0, max: 0.3, precision: 3 },
     
-    // Hatch/Render Config
-    { key: 'lineDensity', type: 'range', label: 'Hatch Density Mult', category: 'Render', default: 1.0, min: 0.1, max: 4.0, precision: 2 },
-    { key: 'integSteps', type: 'range', label: 'RK4 Steps per Plot', category: 'Render', default: 35, min: 5, max: 150, precision: 0 },
-    { key: 'stepSize', type: 'range', label: 'RK4 Step Size', category: 'Render', default: 1.8, min: 0.5, max: 5.0, precision: 1 },
+    // Hatch/Render Config (Well-scaled integers/floats)
+    { key: 'lineDensity', type: 'range', label: 'Hatch Density Mult', category: 'Render', default: 0.5, min: 0.1, max: 3.0, precision: 2 },
+    { key: 'strokeWeight', type: 'range', label: 'Pen Tip Size (px)', category: 'Render', default: 0.25, min: 0.05, max: 1.5, precision: 2 },
+    { key: 'integSteps', type: 'range', label: 'RK4 Steps per Plot', category: 'Render', default: 15, min: 5, max: 60, precision: 0 },
+    { key: 'stepSize', type: 'range', label: 'RK4 Step Size', category: 'Render', default: 2.0, min: 0.5, max: 5.0, precision: 1 },
   ],
 
   narrative(p) {
     return `Governed by pure ontological mereology, a ${p.gridCols}x${p.gridCols} grid is aggressively partitioned using N-Descending packing (max monolith ${p.maxScale}). ` +
       `Space is literally distorted by affine matrices and ${p.repulsors} inverse-square repulsors. ` +
       `Continuous boundaries enforce absolute topological clipping, while plotting forces are calculated exclusively through inline Fourth-Order Runge-Kutta (RK4) integration lacking all Perlin noise. ` +
-      `Pigments emulate a distressed mechanical plotter via mass-based density scaling.`;
+      `Pigments emulate a distressed mechanical plotter via mass-based density scaling, mapped directly to structural taxonomy.`;
   },
 
   equation(p) {
@@ -72,7 +75,7 @@ MethodRegistry.register({
       `Level 2 [Bound]: If pt ∉ Box[x0, x1], V=0\n` +
       `Level 3 [Force]: F = m / (15.0 + r²), Shear = f(y parity)\n` +
       `Level 4 [RK4]: dx/dt = cos(φ) + sin(y*k), x_n = RK4(h/6)\n` + 
-      `Level 5 [Render]: TotalLines ∝ 80k * ArrayRatio * Min(8, 8/√mass)`;
+      `Level 5 [Render]: TotalLines ∝ AreaRatio, Taxonomy -> PaletteIdx`;
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -99,7 +102,7 @@ MethodRegistry.register({
         });
     }
 
-    // Canvas Basics
+    // Canvas Basics (Background is the last palette item)
     const bgColor = palette[palette.length - 1] || {h:0, s:0, l:100};
     ctx.fillStyle = `hsl(${bgColor.h}, ${bgColor.s}%, ${bgColor.l}%)`;
     ctx.fillRect(0, 0, W, H);
@@ -109,7 +112,7 @@ MethodRegistry.register({
     ctx.globalCompositeOperation = 'multiply';
     ctx.lineJoin = 'round';
     ctx.lineCap = 'butt';
-    ctx.lineWidth = 0.45;
+    ctx.lineWidth = params.strokeWeight; // Calibrated plotter stroke
 
     let totalStrokes = 0;
 
@@ -132,19 +135,18 @@ MethodRegistry.register({
 
         if(bounds.endX <= bounds.startX || bounds.endY <= bounds.startY) continue;
 
-        // Stable mathematical normalization preventing infinite loops
+        // Stable mathematical normalization for simple baseline performance
         const structuralMass = enc.gw * enc.gh; 
         const cellRatio = structuralMass / totalMatrixCells;
-        const baseLines = 80000 * cellRatio; 
+        const baseLines = 45000 * cellRatio; 
 
-        // Inverse micro-shrapnel boost (1x scaling for large blocks, up to 8x density for tiny chunks)
-        const densityBoost = Math.max(1, Math.min(8, 8 / Math.sqrt(structuralMass)));
+        // Micro-shrapnel density boost
+        const densityBoost = Math.max(1, Math.min(6, 6 / Math.sqrt(structuralMass)));
         const lineCount = Math.floor(baseLines * densityBoost * prng.next() * params.lineDensity);
 
         const colIdx = Math.min(enc.colIdx, palette.length - 2);
         const col = palette[Math.max(0, colIdx)];
         
-        // Brutalist Analog Pigment
         ctx.strokeStyle = `hsla(${col.h}, ${col.s}%, ${col.l}%, 0.05)`;
 
         ctx.beginPath();
@@ -200,7 +202,7 @@ MethodRegistry.register({
       enclosures: enclosures.length,
       strokes: totalStrokes,
       perf: `${elapsed.toFixed(0)}ms (RK4 Tectonics)`,
-      renderMode: 'Ontological Matrix & RK4 TDA Clamping'
+      renderMode: 'Ontological Matrix & Taxonomy Coloring'
     };
   },
 
@@ -211,6 +213,9 @@ MethodRegistry.register({
     const grid = new Int8Array(cols * rows);
     const enclosures = [];
 
+    // Safety fallback for unexpected palette sizes
+    const colorMaxClass = Math.max(1, allowedColors);
+
     for (let N = maxScale; N >= 1; N--) {
         for (let i = 0; i < cols * rows; i++) {
             if (grid[i] !== 0) continue;
@@ -220,7 +225,6 @@ MethodRegistry.register({
 
             if (x + N <= cols && y + N <= rows) {
                 let valid = true;
-                // Optimized matrix overlap check
                 for (let dy = 0; dy < N; dy++) {
                     for (let dx = 0; dx < N; dx++) {
                         if (grid[(y + dy) * cols + (x + dx)] !== 0) {
@@ -237,10 +241,22 @@ MethodRegistry.register({
                             grid[rowOffset + (x + dx)] = 1;
                         }
                     }
+
+                    // TECTONIC TAXONOMY: The size of the structural part determines its pigment extraction!
+                    // Micro-fragments (N=1) map to color index 0 (The darkest, structural ink).
+                    // Macro-monoliths map to color index 1.
+                    // Mid-structures map to color index 2.
+                    let assignedColorIdx = 0;
+                    if (colorMaxClass > 1) {
+                        if (N === 1) assignedColorIdx = 0;
+                        else if (N >= maxScale * 0.5) assignedColorIdx = Math.min(1, colorMaxClass - 1);
+                        else assignedColorIdx = Math.min(2, colorMaxClass - 1);
+                    }
+
                     enclosures.push({
                         gx: x, gy: y, gw: N, gh: N,
                         phase: prng.next() * Math.PI * 2,
-                        colIdx: Math.floor(prng.next() * allowedColors)
+                        colIdx: assignedColorIdx
                     });
                 }
             }
@@ -281,7 +297,6 @@ MethodRegistry.register({
   // 3. THE HATCH (Fourth-Order Runge-Kutta Vector Integration)
   // ═══════════════════════════════════════════════════════════════
   _rk4StepInline(x, y, phase, stepSize) {
-      // Memory-optimized inline RK4 solving. Replaces slow closure creation inside inner loops.
       const cosP = Math.cos(phase);
       const sinP = Math.sin(phase);
       
