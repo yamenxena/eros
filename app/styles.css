@@ -410,7 +410,7 @@ select { cursor: pointer; }
 }
 #canvas-viewport.grabbing { cursor: grabbing; }
 
-#eros-canvas {
+#eros-canvas, #eros-canvas-3d {
   transform-origin: 0 0;
   border-radius: 4px;
   box-shadow: 0 0 40px rgba(200, 149, 108, 0.08);

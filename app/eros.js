@@ -337,8 +337,10 @@ const CanvasView = {
 
   _apply() {
     const canvas = document.getElementById('eros-canvas');
-    if (!canvas) return;
-    canvas.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+    const canvas3D = document.getElementById('eros-canvas-3d');
+    const transformStr = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+    if (canvas) canvas.style.transform = transformStr;
+    if (canvas3D) canvas3D.style.transform = transformStr;
     this._showIndicator();
   },
 
@@ -362,7 +364,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Init canvas
   const canvas = document.getElementById('eros-canvas');
-  ErosEngine.init(canvas);
+  const canvas3D = document.getElementById('eros-canvas-3d');
+  ErosEngine.init(canvas, canvas3D);
 
   // ── Tab management ──
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -591,6 +594,7 @@ function scheduleRender() {
   renderTimeout = setTimeout(doRender, 80);
 }
 
+window.triggerRender = doRender;
 function doRender() {
   if (renderPending) return;
   renderPending = true;
@@ -924,7 +928,10 @@ function updateConcept() {
 
 // ── Gallery ───────────────────────────────────────────────────
 function saveToGallery() {
-  const canvas = document.getElementById('eros-canvas');
+  const method = ErosEngine.activeMethod;
+  const canvas = method && method.type === '3d' 
+    ? document.getElementById('eros-canvas-3d') 
+    : document.getElementById('eros-canvas');
   
   // Create a small thumbnail to avoid LocalStorage QuotaExceededError
   const thumbSize = 250;
@@ -1029,7 +1036,10 @@ function loadFromGallery(item) {
 
 // ── Export ─────────────────────────────────────────────────────
 function exportPNG() {
-  const canvas = document.getElementById('eros-canvas');
+  const method = ErosEngine.activeMethod;
+  const canvas = method && method.type === '3d' 
+    ? document.getElementById('eros-canvas-3d') 
+    : document.getElementById('eros-canvas');
   const link = document.createElement('a');
   link.download = `eros_${state.methodId}_${state.params.seed}.png`;
   link.href = canvas.toDataURL('image/png');

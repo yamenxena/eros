@@ -101,6 +101,7 @@
   <main id="canvas-area">
     <div id="canvas-viewport">
       <canvas id="eros-canvas"></canvas>
+      <canvas id="eros-canvas-3d" style="display:none; position:absolute; top:0; left:0; outline:none;"></canvas>
     </div>
     <div id="render-info">composing…</div>
 
@@ -229,6 +230,10 @@
   </div>
 </div>
 
+<!-- External Dependencies -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
 <!-- Scripts: core first, then methods, then UI -->
 <script src="eros-core.js"></script>
 <script src="methods/muqarnas.js"></script>
@@ -239,6 +244,7 @@
 <script src="methods/inversion.js"></script>
 <script src="methods/manifold.js"></script>
 <script src="methods/lattice.js"></script>
+<script src="methods/sculpture.js"></script>
 <script src="eros.js"></script>
 </body>
 </html>

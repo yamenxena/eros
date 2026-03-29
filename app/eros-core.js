@@ -233,13 +233,39 @@ const MethodRegistry = {
 // ── Eros Engine (The Loom) ────────────────────────────────────
 const ErosEngine = {
   canvas: null, ctx: null, W: 0, H: 0,
+  canvas3D: null, renderer3D: null, scene3D: null, camera3D: null, controls3D: null,
   activeMethod: null,
 
-  init(canvas) {
+  init(canvas, canvas3D) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    
+    if (canvas3D && typeof THREE !== 'undefined') {
+      this.canvas3D = canvas3D;
+      this.renderer3D = new THREE.WebGLRenderer({ canvas: canvas3D, antialias: true, preserveDrawingBuffer: true, alpha: true });
+      this.renderer3D.setPixelRatio(window.devicePixelRatio);
+      this.scene3D = new THREE.Scene();
+      // Camera is initialized here but methods will configure its properties (fov, etc)
+      this.camera3D = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
+      
+      if (typeof THREE.OrbitControls !== 'undefined') {
+        this.controls3D = new THREE.OrbitControls(this.camera3D, this.renderer3D.domElement);
+        this.controls3D.enableDamping = true;
+        this.controls3D.addEventListener('change', () => {
+          if (this.activeMethod && this.activeMethod.type === '3d' && window.triggerRender) {
+            window.triggerRender();
+          }
+        });
+      }
+    }
+
     this.W = canvas.width = 1024;
     this.H = canvas.height = 1024;
+    if (this.canvas3D) {
+      this.canvas3D.width = this.W;
+      this.canvas3D.height = this.H;
+      this.renderer3D.setSize(this.W, this.H, false);
+    }
   },
 
   loadMethod(methodId) {
@@ -248,9 +274,26 @@ const ErosEngine = {
     this.activeMethod = method;
     
     // Apply method-specified dimensions or fallback to 1024
+    this.W = method.width || 1024;
+    this.H = method.height || 1024;
+
     if (this.canvas) {
-      this.W = this.canvas.width = method.width || 1024;
-      this.H = this.canvas.height = method.height || 1024;
+      this.canvas.width = this.W;
+      this.canvas.height = this.H;
+    }
+    if (this.canvas3D) {
+      this.canvas3D.width = this.W;
+      this.canvas3D.height = this.H;
+      this.renderer3D.setSize(this.W, this.H, false);
+    }
+    
+    // Toggle canvas visibility based on type
+    if (this.activeMethod.type === '3d') {
+      if (this.canvas) this.canvas.style.display = 'none';
+      if (this.canvas3D) this.canvas3D.style.display = 'block';
+    } else {
+      if (this.canvas) this.canvas.style.display = 'block';
+      if (this.canvas3D) this.canvas3D.style.display = 'none';
     }
     
     return method;
@@ -268,9 +311,19 @@ const ErosEngine = {
   render(params, paletteColors) {
     if (!this.activeMethod) throw new Error('No method loaded');
     const t0 = performance.now();
-    const result = this.activeMethod.render(
-      this.canvas, this.ctx, this.W, this.H, params, paletteColors
-    );
+    let result = null;
+
+    if (this.activeMethod.type === '3d') {
+      result = this.activeMethod.render(
+        this.renderer3D, this.scene3D, this.camera3D, this.controls3D, 
+        this.W, this.H, params, paletteColors
+      );
+    } else {
+      result = this.activeMethod.render(
+        this.canvas, this.ctx, this.W, this.H, params, paletteColors
+      );
+    }
+
     const elapsed = performance.now() - t0;
     return { elapsed, ...(result || {}) };
   },
