@@ -11,6 +11,7 @@
 MethodRegistry.register({
   id: 'kovach',
   name: 'Kovach (Mereology)',
+  category: 'Architectural',
   version: '1.1.0',
   type: '2d',
   description: 'Pure ontological mereology: N-Descending Int8 matrix bounds subjected to inverse-square torsion and RK4 fractional integration layers. Zero Perlin noise.',
