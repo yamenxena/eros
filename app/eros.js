@@ -925,7 +925,19 @@ function updateConcept() {
 // ── Gallery ───────────────────────────────────────────────────
 function saveToGallery() {
   const canvas = document.getElementById('eros-canvas');
-  const thumb = canvas.toDataURL('image/png', 0.7);
+  
+  // Create a small thumbnail to avoid LocalStorage QuotaExceededError
+  const thumbSize = 250;
+  const scale = thumbSize / Math.max(canvas.width, canvas.height);
+  const tCanvas = document.createElement('canvas');
+  tCanvas.width = canvas.width * scale;
+  tCanvas.height = canvas.height * scale;
+  const tCtx = tCanvas.getContext('2d');
+  tCtx.drawImage(canvas, 0, 0, tCanvas.width, tCanvas.height);
+  
+  // Use JPEG for massive data reduction, avoiding uncompressed PNG bloat
+  const thumb = tCanvas.toDataURL('image/jpeg', 0.6);
+
   const entry = {
     id: Date.now(),
     thumb,

@@ -31,56 +31,47 @@ MethodRegistry.register({
 
   palettes: [
     {
-      name: 'Porcelain', mood: 'Subtle / Near-blank',
+      name: 'Edifice 834 (Cerulean)', mood: 'Deep Navy & Teal',
       colors: [
-        { h: 30,  s: 15, l: 92 },
-        { h: 25,  s: 10, l: 88 },
-        { h: 35,  s: 8,  l: 85 },
-        { h: 20,  s: 12, l: 80 },
-        { h: 40,  s: 5,  l: 95 },
+        { h: 216, s: 40, l: 20 },
+        { h: 193, s: 50, l: 30 },
+        { h: 192, s: 50, l: 46 },
+        { h: 191, s: 50, l: 65 },
+        { h: 16,  s: 68, l: 52 },
+        { h: 36,  s: 36, l: 91 },
       ]
     },
     {
-      name: 'Noct', mood: 'Dark / Structural',
+      name: 'Edifice Indigo', mood: 'Plum & Violet',
       colors: [
-        { h: 220, s: 40, l: 15 },
-        { h: 210, s: 55, l: 30 },
-        { h: 200, s: 50, l: 45 },
-        { h: 195, s: 60, l: 55 },
-        { h: 215, s: 20, l: 75 },
-        { h: 36,  s: 18, l: 93 },
+        { h: 246, s: 40, l: 20 },
+        { h: 223, s: 50, l: 30 },
+        { h: 222, s: 50, l: 46 },
+        { h: 221, s: 50, l: 65 },
+        { h: 46,  s: 68, l: 52 },
+        { h: 36,  s: 36, l: 91 },
       ]
     },
     {
-      name: 'Blood Orange', mood: 'Warm Gradient',
+      name: 'Edifice Mint', mood: 'Moss & Rose',
       colors: [
-        { h: 10,  s: 75, l: 40 },
-        { h: 20,  s: 70, l: 50 },
-        { h: 30,  s: 65, l: 55 },
-        { h: 40,  s: 60, l: 60 },
-        { h: 15,  s: 80, l: 35 },
-        { h: 38,  s: 25, l: 93 },
+        { h: 176, s: 40, l: 20 },
+        { h: 153, s: 50, l: 30 },
+        { h: 152, s: 50, l: 46 },
+        { h: 151, s: 50, l: 65 },
+        { h: 336, s: 68, l: 52 },
+        { h: 36,  s: 36, l: 91 },
       ]
     },
     {
-      name: 'Meep Morp', mood: 'Cool Gradient',
+      name: 'Edifice Onyx', mood: 'Grayscale & Crimson',
       colors: [
-        { h: 260, s: 50, l: 45 },
-        { h: 280, s: 45, l: 55 },
-        { h: 300, s: 40, l: 60 },
-        { h: 320, s: 35, l: 65 },
-        { h: 340, s: 30, l: 70 },
-        { h: 30,  s: 20, l: 94 },
-      ]
-    },
-    {
-      name: 'Salt', mood: 'Monochrome gradient',
-      colors: [
-        { h: 210, s: 5,  l: 20 },
-        { h: 210, s: 5,  l: 40 },
-        { h: 210, s: 5,  l: 60 },
-        { h: 210, s: 5,  l: 80 },
-        { h: 30,  s: 10, l: 95 },
+        { h: 216, s: 5,  l: 15 },
+        { h: 216, s: 5,  l: 30 },
+        { h: 216, s: 5,  l: 45 },
+        { h: 216, s: 5,  l: 65 },
+        { h: 0,   s: 68, l: 52 },
+        { h: 36,  s: 36, l: 91 },
       ]
     },
   ],
@@ -102,6 +93,7 @@ MethodRegistry.register({
     { key: 'lineWidth',     type: 'range',  label: 'Line Width',         default: 0.55,  min: 0.1,  max: 3.0,   precision: 2 },
     { key: 'spread',        type: 'range',  label: 'Explosion Spread',   default: 0.0,   min: 0.0,  max: 50.0,  precision: 1 },
     { key: 'cellMargin',    type: 'range',  label: 'Cell Margin',        default: 1.5,   min: 0.0,  max: 8.0,   precision: 1 },
+    { key: 'filmGrain',     type: 'range',  label: 'Film Grain',         default: 12,    min: 0,    max: 50,    precision: 0 },
   ],
 
   // ═══════════════════════════════════════════════════════════════
@@ -286,7 +278,9 @@ MethodRegistry.register({
     }
 
     // Grain
-    this._addGrain(ctx, W, H, prng);
+    if (params.filmGrain > 0) {
+      this._addGrain(ctx, W, H, prng, params.filmGrain);
+    }
 
     return {
       cells: `${gridCols}×${gridRows}`,
@@ -728,11 +722,11 @@ MethodRegistry.register({
     ctx.stroke();
   },
 
-  _addGrain(ctx, W, H, prng) {
+  _addGrain(ctx, W, H, prng, intensity) {
     const id = ctx.getImageData(0, 0, W, H);
     const d = id.data;
     for (let i = 0; i < d.length; i += 4) {
-      const noise = (prng.next() - 0.5) * 12;
+      const noise = (prng.next() - 0.5) * intensity;
       d[i] += noise; d[i + 1] += noise; d[i + 2] += noise;
     }
     ctx.putImageData(id, 0, 0);
