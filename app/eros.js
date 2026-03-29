@@ -1192,14 +1192,11 @@ function loadGallery() {
 }
 
 function loadFromGallery(item) {
-  // Switch to the method that was used for this piece
   const targetMethodId = item.methodId || 'muqarnas';
+  
+  // Cleanly switch method to ensure DOM is set up (card opened, others closed)
   if (state.methodId !== targetMethodId) {
-    const method = ErosEngine.loadMethod(targetMethodId);
-    state.methodId = targetMethodId;
-    document.querySelectorAll('.method-card').forEach(c => {
-      c.classList.toggle('active', c.dataset.id === targetMethodId);
-    });
+    switchMethod(targetMethodId);
   }
 
   // Restore params
@@ -1220,7 +1217,9 @@ function loadFromGallery(item) {
 
   // Rebuild sidebar with restored params
   buildParamSidebar(method);
-  buildPaletteUI();
+  buildPalettePanel();
+  buildAnimPanel();
+  refreshActivePaletteBar();
 
   // Switch to canvas tab
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
