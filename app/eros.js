@@ -1130,8 +1130,8 @@ function saveToGallery() {
     ? document.getElementById('eros-canvas-3d') 
     : document.getElementById('eros-canvas');
   
-  // Create a small thumbnail to avoid LocalStorage QuotaExceededError
-  const thumbSize = 250;
+  // Create a high-res thumbnail to match new larger cards
+  const thumbSize = 800;
   const scale = thumbSize / Math.max(canvas.width, canvas.height);
   const tCanvas = document.createElement('canvas');
   tCanvas.width = canvas.width * scale;
@@ -1155,6 +1155,18 @@ function saveToGallery() {
   if (gallery.length > 50) gallery.pop();
   localStorage.setItem('eros-gallery', JSON.stringify(gallery));
   loadGallery();
+  
+  // Visual feedback that a new card was created
+  const saveBtn = document.getElementById('btn-save');
+  if (saveBtn) {
+    const ogText = saveBtn.textContent;
+    saveBtn.textContent = '✓ Saved as New Card';
+    saveBtn.classList.add('btn-success-pulse');
+    setTimeout(() => {
+      saveBtn.textContent = ogText;
+      saveBtn.classList.remove('btn-success-pulse');
+    }, 1500);
+  }
 }
 
 function loadGallery() {

@@ -781,8 +781,8 @@ select { cursor: pointer; }
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 24px;
 }
 
 .gallery-item {
@@ -839,4 +839,14 @@ select { cursor: pointer; }
   #sidebar { width: 100%; min-width: 100%; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
   #canvas-area { flex: 1; }
   .concept-meta-grid { grid-template-columns: 1fr; }
+}
+
+/* Temporary button state class for feedback */
+.btn-success-pulse {
+  background: var(--accent) !important;
+  color: var(--bg) !important;
+  font-weight: 700 !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 15px var(--accent-glow) !important;
+  transition: all 0.2s ease-out !important;
 }
