@@ -367,30 +367,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const canvas3D = document.getElementById('eros-canvas-3d');
   ErosEngine.init(canvas, canvas3D);
 
-  // ── Tab management ──
+  // ── Tab management (desktop) ──
   let activeTabType = '2d';
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      btn.classList.add('active');
-      const targetId = btn.dataset.tab;
-      
-      if (targetId === 'canvas-2d' || targetId === 'canvas-3d') {
-        document.getElementById('tab-canvas').classList.add('active');
-        const newType = targetId === 'canvas-3d' ? '3d' : '2d';
-        if (newType !== activeTabType) {
-          activeTabType = newType;
-          buildMethodSelector(activeTabType);
-        }
-      } else {
-        const tabEl = document.getElementById('tab-' + targetId);
-        if (tabEl) tabEl.classList.add('active');
-      }
+      switchToTab(btn.dataset.tab);
     });
   });
 
-  // ── Palette panel collapse ──
+  // ── Palette panel collapse (desktop) ──
   const palettePanel = document.getElementById('palette-panel');
   document.getElementById('palette-collapse-btn').addEventListener('click', () => {
     palettePanel.classList.toggle('collapsed');
@@ -398,6 +383,118 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-palette-toggle')?.addEventListener('click', () => {
     palettePanel.classList.toggle('collapsed');
   });
+
+  // ═══════════════════════════════════════════════════════════════
+  // ── MOBILE NAVIGATION CONTROLLER ──
+  // Bottom nav bar, bottom-sheet drawers, backdrop, 2D/3D toggle
+  // ═══════════════════════════════════════════════════════════════
+  const mobileBackdrop = document.getElementById('mobile-backdrop');
+  const mobileNav = document.getElementById('mobile-nav');
+
+  function isMobile() { return window.innerWidth <= 768; }
+
+  function closeMobileSheets() {
+    document.body.classList.remove('sidebar-open', 'palette-open');
+    if (mobileBackdrop) mobileBackdrop.classList.remove('visible');
+  }
+
+  function openMobileSheet(which) {
+    closeMobileSheets();
+    document.body.classList.add(which + '-open');
+    if (mobileBackdrop) mobileBackdrop.classList.add('visible');
+  }
+
+  // Shared tab-switching logic for both desktop and mobile
+  function switchToTab(targetId) {
+    // Clear desktop nav active states
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+    // Clear mobile nav active states (only for tab buttons, not action buttons)
+    document.querySelectorAll('.mobile-nav-btn[data-tab]').forEach(b => b.classList.remove('active'));
+
+    // Close any open mobile sheets
+    closeMobileSheets();
+
+    if (targetId === 'canvas-2d' || targetId === 'canvas-3d') {
+      document.getElementById('tab-canvas').classList.add('active');
+      const newType = targetId === 'canvas-3d' ? '3d' : '2d';
+      if (newType !== activeTabType) {
+        activeTabType = newType;
+        buildMethodSelector(activeTabType);
+      }
+      // Activate desktop tab btn
+      const deskBtn = document.querySelector(`#main-nav [data-tab="${targetId}"]`);
+      if (deskBtn) deskBtn.classList.add('active');
+      // Activate mobile btn (always 'canvas-2d' since 3D is a floating toggle)
+      const mobBtn = document.querySelector(`#mobile-nav [data-tab="canvas-2d"]`);
+      if (mobBtn) mobBtn.classList.add('active');
+      // Update 2D/3D toggle text
+      const toggle3d = document.getElementById('mobile-3d-toggle');
+      if (toggle3d) {
+        toggle3d.textContent = activeTabType === '3d' ? '3D' : '2D';
+        toggle3d.classList.toggle('active-3d', activeTabType === '3d');
+      }
+    } else {
+      const tabEl = document.getElementById('tab-' + targetId);
+      if (tabEl) tabEl.classList.add('active');
+      // Desktop
+      const deskBtn = document.querySelector(`#main-nav [data-tab="${targetId}"]`);
+      if (deskBtn) deskBtn.classList.add('active');
+      // Mobile
+      const mobBtn = document.querySelector(`#mobile-nav [data-tab="${targetId}"]`);
+      if (mobBtn) mobBtn.classList.add('active');
+    }
+  }
+
+  // Mobile bottom nav: tab buttons
+  document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      const action = btn.dataset.action;
+
+      if (tab) {
+        switchToTab(tab);
+      } else if (action === 'sidebar') {
+        const isOpen = document.body.classList.contains('sidebar-open');
+        if (isOpen) {
+          closeMobileSheets();
+        } else {
+          openMobileSheet('sidebar');
+        }
+        // Highlight active state for action buttons
+        document.querySelectorAll('.mobile-nav-btn[data-action]').forEach(b => b.classList.remove('active'));
+        if (!isOpen) btn.classList.add('active');
+      } else if (action === 'palette') {
+        const isOpen = document.body.classList.contains('palette-open');
+        if (isOpen) {
+          closeMobileSheets();
+        } else {
+          openMobileSheet('palette');
+        }
+        document.querySelectorAll('.mobile-nav-btn[data-action]').forEach(b => b.classList.remove('active'));
+        if (!isOpen) btn.classList.add('active');
+      }
+    });
+  });
+
+  // Backdrop tap → close sheets
+  if (mobileBackdrop) {
+    mobileBackdrop.addEventListener('click', () => {
+      closeMobileSheets();
+      // Remove active state from action buttons, restore tab active
+      document.querySelectorAll('.mobile-nav-btn[data-action]').forEach(b => b.classList.remove('active'));
+    });
+  }
+
+  // 2D/3D floating toggle (mobile only)
+  const mobile3DToggle = document.getElementById('mobile-3d-toggle');
+  if (mobile3DToggle) {
+    mobile3DToggle.addEventListener('click', () => {
+      const newType = activeTabType === '2d' ? 'canvas-3d' : 'canvas-2d';
+      switchToTab(newType);
+    });
+  }
 
   // ── Build method selector ──
   buildMethodSelector('2d');
@@ -1233,13 +1330,20 @@ function loadFromGallery(item) {
   buildAnimPanel();
   refreshActivePaletteBar();
 
-  // Switch to canvas tab
+  // Switch to canvas tab (sync both desktop and mobile nav)
+  const targetTabName = (method && method.type === '3d') ? 'canvas-3d' : 'canvas-2d';
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  
-  const targetTabName = (method && method.type === '3d') ? 'canvas-3d' : 'canvas-2d';
-  const targetBtn = document.querySelector(`[data-tab="${targetTabName}"]`);
+  document.querySelectorAll('.mobile-nav-btn[data-tab]').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-btn[data-action]').forEach(b => b.classList.remove('active'));
+  document.body.classList.remove('sidebar-open', 'palette-open');
+  const backdrop = document.getElementById('mobile-backdrop');
+  if (backdrop) backdrop.classList.remove('visible');
+
+  const targetBtn = document.querySelector(`#main-nav [data-tab="${targetTabName}"]`);
   if (targetBtn) targetBtn.classList.add('active');
+  const mobileCanvasBtn = document.querySelector('#mobile-nav [data-tab="canvas-2d"]');
+  if (mobileCanvasBtn) mobileCanvasBtn.classList.add('active');
   document.getElementById('tab-canvas').classList.add('active');
 
   CanvasView.fit();

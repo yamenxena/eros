@@ -28,6 +28,28 @@
   </nav>
 </header>
 
+<!-- Mobile Bottom Navigation (hidden on desktop, fixed bottom on mobile) -->
+<nav id="mobile-nav">
+  <button class="mobile-nav-btn active" data-tab="gallery" title="Gallery">
+    <span class="mobile-nav-icon">📂</span><span class="mobile-nav-label">Gallery</span>
+  </button>
+  <button class="mobile-nav-btn" data-tab="canvas-2d" title="Canvas">
+    <span class="mobile-nav-icon">🖼️</span><span class="mobile-nav-label">Canvas</span>
+  </button>
+  <button class="mobile-nav-btn" data-tab="concept" title="Concept">
+    <span class="mobile-nav-icon">📋</span><span class="mobile-nav-label">Concept</span>
+  </button>
+  <button class="mobile-nav-btn" data-action="sidebar" title="Parameters">
+    <span class="mobile-nav-icon">⚙</span><span class="mobile-nav-label">Params</span>
+  </button>
+  <button class="mobile-nav-btn" data-action="palette" title="Palette">
+    <span class="mobile-nav-icon">🎨</span><span class="mobile-nav-label">Palette</span>
+  </button>
+</nav>
+
+<!-- Mobile Backdrop Overlay -->
+<div id="mobile-backdrop"></div>
+
 <!-- ═══════════════════════════════════════════════════ -->
 <!-- ── CANVAS TAB ──────────────────────────────────── -->
 <!-- ═══════════════════════════════════════════════════ -->
@@ -100,6 +122,8 @@
     <div id="canvas-viewport">
       <canvas id="eros-canvas"></canvas>
       <canvas id="eros-canvas-3d" style="display:none; position:absolute; top:0; left:0; outline:none;"></canvas>
+      <!-- Mobile 2D/3D toggle (hidden on desktop) -->
+      <button id="mobile-3d-toggle" class="mobile-3d-toggle" title="Switch 2D/3D">2D</button>
     </div>
     <div id="render-info">composing…</div>
 
