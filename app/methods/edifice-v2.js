@@ -70,8 +70,8 @@ MethodRegistry.register({
     { key: 'meshSubdivs', type: 'range', label: 'Mesh Subdivision', default: 6.0, min: 1.0, max: 30.0, precision: 1, category: 'Render' },
     { key: 'lineWeight', type: 'range', label: 'Ink Pen Size', default: 0.60, min: 0.1, max: 3.0, precision: 2, category: 'Render' },
     { key: 'lineAlpha', type: 'range', label: 'Ink Alpha', default: 0.85, min: 0.05, max: 1.0, precision: 2, category: 'Render' },
+    { key: 'sketchWarp', type: 'range', label: 'Sketch Warp (Noise)', default: 0.0, min: 0.0, max: 5.0, precision: 1, category: 'Render' },
     { key: 'grainIntensity', type: 'range', label: 'Canvas Grain', default: 10, min: 0, max: 50, precision: 0, category: 'Render' },
-    { key: 'sketchyLines', type: 'boolean', label: 'Sketchy Grain Warp', default: false, category: 'Render' },
   ],
 
   narrative(p) {
@@ -482,8 +482,8 @@ MethodRegistry.register({
        let p1 = this._displacePoint(link.n1.x, link.n1.y, cx, cy, displacementType);
        let p2 = this._displacePoint(link.n2.x, link.n2.y, cx, cy, displacementType);
        
-       if (params.sketchyLines && params.grainIntensity > 0) {
-           let force = params.grainIntensity * 0.12;
+       if (params.sketchWarp > 0) {
+           let force = params.sketchWarp;
            p1.x += (prng.next() - 0.5) * force;
            p1.y += (prng.next() - 0.5) * force;
            p2.x += (prng.next() - 0.5) * force;

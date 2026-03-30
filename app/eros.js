@@ -1230,6 +1230,7 @@ function loadFromGallery(item) {
   if (targetBtn) targetBtn.classList.add('active');
   document.getElementById('tab-canvas').classList.add('active');
 
+  CanvasView.fit();
   doRender();
 }
 
