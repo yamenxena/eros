@@ -21,10 +21,10 @@ class EscherPeriodicMethod {
     ];
 
     this.palettes = [
-      { name: 'Alhambra',      colors: ['#D25D38', '#2D728F', '#F4B942', '#E8E5DA'] },
-      { name: 'Crystalline',   colors: ['#8BA6B9', '#6BAA95', '#B0B6BC', '#212429'] },
-      { name: 'Dutch Master',  colors: ['#6D665E', '#4B3F35', '#728964', '#DED6C4'] },
-      { name: 'Stained Glass', colors: ['#9A1B22', '#1C315E', '#166E45', '#C4811C', '#0A0A0A'] }
+      { name: 'Alhambra',      mood: 'Terracotta', colors: [{h:14,s:65,l:52}, {h:198,s:52,l:37}, {h:40,s:90,l:61}, {h:47,s:21,l:88}] },
+      { name: 'Crystalline',   mood: 'Chiseled', colors: [{h:205,s:26,l:64}, {h:160,s:26,l:54}, {h:210,s:8,l:71}, {h:218,s:11,l:15}] },
+      { name: 'Dutch Master',  mood: 'Painterly', colors: [{h:32,s:7,l:40}, {h:27,s:17,l:25}, {h:97,s:16,l:46}, {h:42,s:26,l:82}] },
+      { name: 'Stained Glass', mood: 'Vibrant', colors: [{h:357,s:70,l:35}, {h:221,s:54,l:24}, {h:152,s:67,l:26}, {h:36,s:75,l:44}, {h:0,s:0,l:4}] }
     ];
 
     // Pre-computed constants for hexagon/triangle grids
@@ -133,7 +133,8 @@ class EscherPeriodicMethod {
     const S = params.tileScale;
     
     // Clear canvas
-    ctx.fillStyle = palette[0] || '#fff';
+    const bg = palette[0] ? `hsl(${palette[0].h}, ${palette[0].s}%, ${palette[0].l}%)` : '#fff';
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
     // Build the generatrix polygon (Fundamental Domain visual Motif)
@@ -197,8 +198,11 @@ class EscherPeriodicMethod {
       // We skip drawing the background color shapes to let it breathe (stencil effect)
       if (c === 0 && palette.length > 2) continue; 
       
+      const colObj = palette[c];
+      const colStr = `hsl(${colObj.h}, ${colObj.s}%, ${colObj.l}%)`;
+      
       if (typeof fillPolygonBatch !== 'undefined') {
-        fillPolygonBatch(ctx, batches[c], palette[c]);
+        fillPolygonBatch(ctx, batches[c], colStr);
       }
       if (params.lineWeight > 0 && typeof strokePolygonBatch !== 'undefined') {
         strokePolygonBatch(ctx, batches[c], '#0d0a14', params.lineWeight);

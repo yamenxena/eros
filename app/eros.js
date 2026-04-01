@@ -965,12 +965,18 @@ function doRender() {
   info.textContent = 'composing…';
 
   requestAnimationFrame(() => {
-    const result = ErosEngine.render(state.params, state.palette.colors);
-    const stats = Object.entries(result).filter(([k]) => k !== 'elapsed')
-      .map(([k, v]) => `${v} ${k.replace('Count', '')}`).join(' · ');
-    info.textContent = `${stats} · ${result.elapsed.toFixed(0)} ms`;
-    renderPending = false;
-    updateConcept();
+    try {
+      const result = ErosEngine.render(state.params, state.palette.colors);
+      const stats = Object.entries(result).filter(([k]) => k !== 'elapsed')
+        .map(([k, v]) => `${v} ${k.replace('Count', '')}`).join(' · ');
+      info.textContent = `${stats} · ${result.elapsed.toFixed(0)} ms`;
+    } catch (err) {
+      console.error('ErosEngine render error:', err);
+      info.textContent = 'Render Error — check console';
+    } finally {
+      renderPending = false;
+      updateConcept();
+    }
   });
 }
 
