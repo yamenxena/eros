@@ -159,20 +159,23 @@ class EscherPeriodicMethod {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Build the generatrix polygon (Fundamental Domain visual Motif)
-    const basePolygon = this.buildGeneratrix(params, prng, group.type);
+    // Build the generatrix polygon (Fundamental Domain = 1/N of unit cell, where N = ops count)
+    const basePolygon = this.buildGeneratrix(params, prng, group.type, group.ops.length);
 
     // Rendering prep
     const batches = Array.from({ length: palette.length }, () => []);
     
     // Lattice vector step sizes based on lattice type
-    let dx = S, dy = S, sx = S, sy = S;
+    // Must match the fundamental domain dimensions for seamless tiling
+    let dx = S, dy = S;
     let type = group.type;
     if (type === 'hex') {
-      dx = S * 1.5;
-      dy = S * this.SIN60 * 2;
+      // Flat-top hex: column spacing = 1.5 × circumradius, row = √3 × circumradius
+      // circumradius = 0.5 in normalized space, scaled by S
+      dx = S * 0.75; // 1.5 × 0.5
+      dy = S * this.SIN60; // √3/2 × S (= 0.5 × √3)
     } else if (type === 'oblique') {
-      dx = S * 1.5;
+      dx = S * this.SIN60;
       dy = S;
     }
 
@@ -217,9 +220,6 @@ class EscherPeriodicMethod {
     for (let c = 0; c < palette.length; c++) {
       if (batches[c].length === 0) continue;
       
-      // We skip drawing the background color shapes to let it breathe (stencil effect)
-      if (c === 0 && palette.length > 2) continue; 
-      
       const colObj = palette[c];
       const colStr = `hsl(${colObj.h}, ${colObj.s}%, ${colObj.l}%)`;
       
@@ -234,40 +234,162 @@ class EscherPeriodicMethod {
     }
   }
 
-  // Generates the base decorative polygon restricted to fundamental domain
-  buildGeneratrix(params, prng, type) {
-    const pts = [];
-    const C = params.motifComplexity;
-    
-    // Create an irregular star inside [0, 0.5] space respecting the type bounds
-    // to prevent overlaps when 8x rotated in p4mm, etc.
-    let maxR = 0.5;
-    if (type === 'square') maxR = 0.5;
-    if (type === 'hex') maxR = 0.577; // 1/sqrt(3)
+  // ── Build the fundamental domain as a space-filling polygon ──────
+  // For wallpaper groups, the fundamental domain is 1/N of the unit cell,
+  // where N = number of symmetry operations. The ops tile the domain
+  // to fill one cell, and the lattice tiles cells to fill the plane.
+  //
+  // For translation-only groups (p1), domain = full cell.
+  // For groups with rotations/reflections, domain is a proportional fraction.
+  //
+  // Edge deformation uses paired offsets: opposite/shared edges get the
+  // same deformation so tiles interlock seamlessly (Escher's technique).
+  buildGeneratrix(params, prng, type, nOps) {
+    const warp = params.edgeWarp;
+    const C = Math.max(3, params.motifComplexity); // segments per edge
 
-    for (let i = 0; i < C; i++) {
-        const a = (i / C) * Math.PI * 2;
-        const r = maxR * (0.3 + 0.7 * prng());
-        pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+    if (type === 'hex') {
+      return this._buildHexWedge(warp, C, prng, nOps);
+    } else if (type === 'oblique') {
+      return this._buildRhombusDomain(warp, C, prng, nOps);
+    } else {
+      return this._buildSquareWedge(warp, C, prng, nOps);
     }
-
-    // Apply bezier deformation along edges
-    const deformed = [];
-    for(let i = 0; i < pts.length; i++) {
-        const next = pts[(i+1) % pts.length];
-        // Only deform if edge warp is > 0
-        if (params.edgeWarp > 0) {
-          // Clamp amplitude to 0.4 × edge length to prevent tessellation breakage (§19.5)
-          const edgeLen = Math.sqrt((next[0]-pts[i][0])**2 + (next[1]-pts[i][1])**2);
-          const amp = Math.min(params.edgeWarp * 0.4, edgeLen * 0.4);
-          const segs = deformEdge(pts[i], next, amp, prng, 4);
-          deformed.push(...segs.slice(0, -1));
-        } else {
-          deformed.push(pts[i]);
-        }
-    }
-    return deformed;
   }
+
+  // Square-lattice fundamental domain — sized to 1/nOps of the unit cell
+  _buildSquareWedge(warp, segCount, prng, nOps) {
+    let corners;
+    
+    if (nOps <= 1) {
+      // p1: full unit square
+      corners = [[-0.5,-0.5], [0.5,-0.5], [0.5,0.5], [-0.5,0.5]];
+    } else if (nOps === 2) {
+      // p2, pm, pg: half of square (rectangle)
+      corners = [[-0.5,-0.5], [0.5,-0.5], [0.5,0], [-0.5,0]];
+    } else if (nOps <= 4) {
+      // p4: quarter square (right triangle / square quadrant)
+      corners = [[0,0], [0.5,0], [0.5,0.5], [0,0.5]];
+    } else {
+      // p4mm (8 ops): eighth of square (right triangle wedge)
+      corners = [[0,0], [0.5,0], [0.5,0.5]];
+    }
+
+    return this._buildDeformedPoly(corners, warp, segCount, prng);
+  }
+
+  // Hex-lattice fundamental domain — sized as wedge of unit hex
+  _buildHexWedge(warp, segCount, prng, nOps) {
+    const r = 0.5;
+    let corners;
+
+    if (nOps <= 3) {
+      // p3: 120° wedge (isoceles triangle = 1/3 of hex)
+      corners = [
+        [0, 0],
+        [r * Math.cos(-Math.PI/6), r * Math.sin(-Math.PI/6)],
+        [r * Math.cos(Math.PI/6),  r * Math.sin(Math.PI/6)]
+      ];
+    } else if (nOps <= 6) {
+      // p6, p3m1, p31m: 60° wedge (equilateral triangle = 1/6 of hex)
+      corners = [
+        [0, 0],
+        [r * Math.cos(-Math.PI/6), r * Math.sin(-Math.PI/6)],
+        [r, 0]
+      ];
+    } else {
+      // p6mm (12 ops): 30° wedge (right triangle = 1/12 of hex)
+      corners = [
+        [0, 0],
+        [r, 0],
+        [r * Math.cos(Math.PI/6) * 0.5, r * Math.sin(Math.PI/6) * 0.5]
+      ];
+    }
+
+    return this._buildDeformedPoly(corners, warp, segCount, prng);
+  }
+
+  // Rhombic (oblique cm) fundamental domain
+  _buildRhombusDomain(warp, segCount, prng, nOps) {
+    const s = 0.5;
+    let corners;
+    if (nOps <= 1) {
+      // Full rhombus
+      corners = [
+        [0, -s],
+        [s * this.SIN60, -s * this.COS60],
+        [0, s],
+        [-s * this.SIN60, s * this.COS60]
+      ];
+    } else {
+      // Half rhombus (triangle)
+      corners = [
+        [0, -s],
+        [s * this.SIN60, -s * this.COS60],
+        [0, s]
+      ];
+    }
+    return this._buildDeformedPoly(corners, warp, segCount, prng);
+  }
+
+  // Generic deformed polygon builder — works for any number of corners
+  _buildDeformedPoly(corners, warp, segCount, prng) {
+    const nEdges = corners.length;
+    // Generate deformation offsets for each edge
+    // Pair opposite edges (floor(nEdges/2) independent, rest shared)
+    const nIndependent = Math.ceil(nEdges / 2);
+    const edgeOffsets = [];
+    for (let i = 0; i < nIndependent; i++) {
+      edgeOffsets.push(this._genEdgeOffsets(segCount, warp, prng));
+    }
+    // Remaining edges share offsets with their opposite
+    while (edgeOffsets.length < nEdges) {
+      edgeOffsets.push(edgeOffsets[edgeOffsets.length - nIndependent]);
+    }
+
+    const poly = [];
+    for (let i = 0; i < nEdges; i++) {
+      const p0 = corners[i];
+      const p1 = corners[(i + 1) % nEdges];
+      this._addDeformedEdge(poly, p0, p1, edgeOffsets[i], segCount);
+    }
+    return poly;
+  }
+
+  // Generate N random offset values used to deform one edge
+  _genEdgeOffsets(segCount, warp, prng) {
+    const offsets = [];
+    for (let i = 0; i < segCount - 1; i++) {
+      offsets.push((prng() * 2 - 1) * warp * 0.3);
+    }
+    return offsets;
+  }
+
+  // Add a deformed edge to polygon — applying perpendicular offsets
+  // Uses the edge's actual normal direction (not axis-locked)
+  _addDeformedEdge(poly, p0, p1, offsets, segCount) {
+    const n = segCount;
+    // Compute perpendicular (normal) to edge
+    const edx = p1[0] - p0[0];
+    const edy = p1[1] - p0[1];
+    const len = Math.sqrt(edx * edx + edy * edy) || 1;
+    const nx = -edy / len; // perpendicular unit normal
+    const ny =  edx / len;
+
+    for (let i = 0; i < n; i++) {
+      const t = i / n;
+      const x = p0[0] + edx * t;
+      const y = p0[1] + edy * t;
+      // Apply perpendicular offset for interior points (not first vertex)
+      if (i > 0) {
+        const offset = offsets[i - 1] || 0;
+        poly.push([x + nx * offset, y + ny * offset]);
+      } else {
+        poly.push([x, y]);
+      }
+    }
+  }
+
 
   fastHash(x, y, op) {
     let h = (x * 73856093) ^ (y * 19349663) ^ (op * 83492791);
