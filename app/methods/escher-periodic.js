@@ -127,7 +127,7 @@ class EscherPeriodicMethod {
     };
   }
 
-  generate(ctx, W, H, params, palette) {
+  render(ctx, W, H, params, palette) {
     const prng = typeof ErosEngine !== 'undefined' ? ErosEngine.seedPRNG(params.seed) : Math.random;
     const group = this.groups[params.wallpaperGroup];
     const S = params.tileScale;
@@ -172,7 +172,7 @@ class EscherPeriodicMethod {
             for (let opIdx = 0; opIdx < group.ops.length; opIdx++) {
                 const op = group.ops[opIdx];
                 // Apply affine transform to base polygon
-                let poly = affineTransform(basePolygon, op);
+                let poly = typeof affineTransform !== 'undefined' ? affineTransform(basePolygon, op) : basePolygon;
                 
                 // Translate by lattice anchor and scale
                 poly = poly.map(pt => [
@@ -197,8 +197,10 @@ class EscherPeriodicMethod {
       // We skip drawing the background color shapes to let it breathe (stencil effect)
       if (c === 0 && palette.length > 2) continue; 
       
-      fillPolygonBatch(ctx, batches[c], palette[c]);
-      if (params.lineWeight > 0) {
+      if (typeof fillPolygonBatch !== 'undefined') {
+        fillPolygonBatch(ctx, batches[c], palette[c]);
+      }
+      if (params.lineWeight > 0 && typeof strokePolygonBatch !== 'undefined') {
         strokePolygonBatch(ctx, batches[c], '#0d0a14', params.lineWeight);
       }
     }
@@ -253,5 +255,5 @@ class EscherPeriodicMethod {
 
 // Register if standard environment
 if (typeof MethodRegistry !== 'undefined') {
-  MethodRegistry.register('escher-periodic', new EscherPeriodicMethod());
+  MethodRegistry.register(new EscherPeriodicMethod());
 }
