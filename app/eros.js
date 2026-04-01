@@ -314,9 +314,11 @@ const CanvasView = {
     const canvas = document.getElementById('eros-canvas');
     if (!vp || !canvas) return;
     const vpW = vp.clientWidth, vpH = vp.clientHeight;
-    const cW = canvas.width, cH = canvas.height;
+    if (vpW === 0 || vpH === 0) return; // Prevent calculating scale when hidden
+    const cW = Math.max(1, canvas.width);
+    const cH = Math.max(1, canvas.height);
     const pad = 40;
-    this.scale = Math.min((vpW - pad) / cW, (vpH - pad) / cH, 1);
+    this.scale = Math.max(0.05, Math.min((vpW - pad) / cW, (vpH - pad) / cH, 1));
     this.panX = (vpW - cW * this.scale) / 2;
     this.panY = (vpH - cH * this.scale) / 2;
     this._apply();
@@ -1308,7 +1310,13 @@ function saveToGallery() {
 }
 
 function loadGallery() {
-  const gallery = JSON.parse(localStorage.getItem('eros-gallery') || '[]');
+  let gallery = [];
+  try {
+    gallery = JSON.parse(localStorage.getItem('eros-gallery') || '[]');
+  } catch (e) {
+    console.warn('Eros: Found corrupted gallery data, resetting local storage.');
+    localStorage.removeItem('eros-gallery');
+  }
   const grid = document.getElementById('gallery-grid');
   const empty = document.getElementById('gallery-empty');
   if (gallery.length === 0) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
@@ -1387,7 +1395,9 @@ function loadFromGallery(item) {
   if (mobileCanvasBtn) mobileCanvasBtn.classList.add('active');
   document.getElementById('tab-canvas').classList.add('active');
 
-  CanvasView.fit();
+  requestAnimationFrame(() => {
+    CanvasView.fit();
+  });
   doRender();
 }
 
