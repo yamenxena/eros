@@ -563,6 +563,42 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Gallery ──
   loadGallery();
 
+  document.getElementById('btn-gallery-export-all')?.addEventListener('click', () => {
+    const gallery = localStorage.getItem('eros-gallery') || '[]';
+    downloadJSON(gallery, `eros_gallery_backup_${Date.now()}.json`);
+  });
+
+  const uploadInput = document.getElementById('input-gallery-import');
+  document.getElementById('btn-gallery-import')?.addEventListener('click', () => uploadInput?.click());
+  uploadInput?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        const gallery = JSON.parse(localStorage.getItem('eros-gallery') || '[]');
+        let count = 0;
+        const items = Array.isArray(data) ? data : [data];
+        items.forEach(item => {
+          if (item.methodId && item.params) {
+            item.id = Date.now() + count++;
+            gallery.unshift(item);
+          }
+        });
+        if (count > 0) {
+          while (gallery.length > 50) gallery.pop();
+          localStorage.setItem('eros-gallery', JSON.stringify(gallery));
+          loadGallery();
+        } else {
+          alert('No valid compositions found in JSON.');
+        }
+      } catch (err) { alert('Failed to parse JSON file.'); }
+      uploadInput.value = '';
+    };
+    reader.readAsText(file);
+  });
+
   // ── Animation UI ──
   document.getElementById('anim-toggle')?.addEventListener('click', () => {
     const panel = document.getElementById('anim-panel');
@@ -1330,7 +1366,8 @@ function loadGallery() {
       </div>
       <div class="gallery-item-actions">
         <button class="btn-load" data-id="${item.id}">Load</button>
-        <button class="btn-delete" data-id="${item.id}">✕</button>
+        <button class="btn-export-item" data-id="${item.id}" title="Download JSON">↓</button>
+        <button class="btn-delete" data-id="${item.id}" title="Delete">✕</button>
       </div>
     </div>
   `).join('');
@@ -1338,6 +1375,12 @@ function loadGallery() {
     btn.addEventListener('click', () => {
       const item = gallery.find(g => g.id === parseInt(btn.dataset.id));
       if (item) loadFromGallery(item);
+    });
+  });
+  grid.querySelectorAll('.btn-export-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = gallery.find(g => g.id === parseInt(btn.dataset.id));
+      if (item) downloadJSON(JSON.stringify(item, null, 2), `eros_${item.methodId}_${item.id}.json`);
     });
   });
   grid.querySelectorAll('.btn-delete').forEach(btn => {
@@ -1411,4 +1454,15 @@ function exportPNG() {
   link.download = `eros_${state.methodId}_${state.params.seed}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
+}
+
+function downloadJSON(jsonString, filename) {
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
 }

@@ -250,6 +250,11 @@
 <!-- ── GALLERY TAB ─────────────────────────────────── -->
 <!-- ═══════════════════════════════════════════════════ -->
 <div id="tab-gallery" class="tab-content active">
+  <div class="gallery-toolbar" style="padding: 15px 20px 5px; display: flex; justify-content: flex-end; gap: 8px;">
+    <button id="btn-gallery-import" class="btn-secondary" title="Import method configuration from .json">↑ Import</button>
+    <button id="btn-gallery-export-all" class="btn-secondary" title="Backup entire gallery as .json">↓ Export All</button>
+    <input type="file" id="input-gallery-import" accept=".json" style="display:none">
+  </div>
   <div class="gallery-content">
     <div id="gallery-grid" class="gallery-grid"></div>
     <p id="gallery-empty" class="gallery-empty">No compositions saved yet.</p>
