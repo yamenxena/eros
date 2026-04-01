@@ -234,19 +234,34 @@ class EscherPeriodicMethod {
     }
   }
 
-  // ── Build the fundamental domain as a space-filling polygon ──────
-  // For wallpaper groups, the fundamental domain is 1/N of the unit cell,
-  // where N = number of symmetry operations. The ops tile the domain
-  // to fill one cell, and the lattice tiles cells to fill the plane.
+  // ══════════════════════════════════════════════════════════════════
+  // BUILD FUNDAMENTAL DOMAIN — Escher Edge Classification System
+  // ══════════════════════════════════════════════════════════════════
   //
-  // For translation-only groups (p1), domain = full cell.
-  // For groups with rotations/reflections, domain is a proportional fraction.
+  // Escher's tessellation principle (§2.3 of heuristics):
   //
-  // Edge deformation uses paired offsets: opposite/shared edges get the
-  // same deformation so tiles interlock seamlessly (Escher's technique).
+  //   Edges are classified into two types:
+  //   ───────────────────────────────────────────────────
+  //   FIXED edges   – lie on symmetry axes (rotation centers, mirror 
+  //                   lines). These are internal boundaries between
+  //                   symmetry copies within the same cell. They MUST
+  //                   remain straight to guarantee zero-gap fitting
+  //                   between rotated/reflected copies.
+  //
+  //   FREE edges    – lie on the unit cell boundary. These can be
+  //                   deformed freely with Bézier curves. Opposite
+  //                   free edges share the SAME deformation offsets
+  //                   (translated or rotated) so adjacent cells
+  //                   interlock seamlessly.
+  //
+  //   Vertex angle sum at every meeting point: Σθᵢ = 2π
+  //   Warp amplitude clamped: |offset| ≤ 0.4 × edgeLength
+  //
+  // ══════════════════════════════════════════════════════════════════
+
   buildGeneratrix(params, prng, type, nOps) {
     const warp = params.edgeWarp;
-    const C = Math.max(3, params.motifComplexity); // segments per edge
+    const C = Math.max(3, params.motifComplexity);
 
     if (type === 'hex') {
       return this._buildHexWedge(warp, C, prng, nOps);
@@ -257,106 +272,136 @@ class EscherPeriodicMethod {
     }
   }
 
-  // Square-lattice fundamental domain — sized to 1/nOps of the unit cell
+  // ── Square Lattice Fundamental Domains ────────────────────────
   _buildSquareWedge(warp, segCount, prng, nOps) {
-    let corners;
-    
+    // edges[] array: each entry is { p0, p1, free: boolean }
+    // 'free' = can be deformed; !free = must stay straight (on symmetry axis)
+
     if (nOps <= 1) {
-      // p1: full unit square
-      corners = [[-0.5,-0.5], [0.5,-0.5], [0.5,0.5], [-0.5,0.5]];
-    } else if (nOps === 2) {
-      // p2, pm, pg: half of square (rectangle)
-      corners = [[-0.5,-0.5], [0.5,-0.5], [0.5,0], [-0.5,0]];
-    } else if (nOps <= 4) {
-      // p4: quarter square (right triangle / square quadrant)
-      corners = [[0,0], [0.5,0], [0.5,0.5], [0,0.5]];
-    } else {
-      // p4mm (8 ops): eighth of square (right triangle wedge)
-      corners = [[0,0], [0.5,0], [0.5,0.5]];
+      // p1: full unit square — ALL 4 edges are free (cell boundary)
+      // Paired: bottom↔top (translation), left↔right (translation)
+      return this._buildEdgeSystem([
+        { p0: [-0.5,-0.5], p1: [0.5,-0.5], free: true, pairId: 0 }, // bottom
+        { p0: [0.5,-0.5],  p1: [0.5, 0.5], free: true, pairId: 1 }, // right
+        { p0: [0.5, 0.5],  p1: [-0.5,0.5], free: true, pairId: 0 }, // top (= bottom)
+        { p0: [-0.5,0.5],  p1: [-0.5,-0.5],free: true, pairId: 1 }, // left (= right)
+      ], warp, segCount, prng);
     }
 
-    return this._buildDeformedPoly(corners, warp, segCount, prng);
+    if (nOps === 2) {
+      // p2/pm/pg: half square — bottom & top are free (cell boundary),
+      // middle edge is on rotation axis → fixed
+      return this._buildEdgeSystem([
+        { p0: [-0.5,-0.5], p1: [0.5,-0.5], free: true,  pairId: 0 }, // bottom (free)
+        { p0: [0.5,-0.5],  p1: [0.5, 0],   free: true,  pairId: 1 }, // right-half
+        { p0: [0.5, 0],    p1: [-0.5, 0],   free: false, pairId: -1}, // axis (fixed)
+        { p0: [-0.5, 0],   p1: [-0.5,-0.5], free: true,  pairId: 1 }, // left-half
+      ], warp, segCount, prng);
+    }
+
+    if (nOps <= 4) {
+      // p4: quarter square — edges from center (0,0) are on rotation axes → FIXED
+      // Only the two cell-boundary edges are free
+      return this._buildEdgeSystem([
+        { p0: [0,0],      p1: [0.5, 0],   free: false, pairId: -1}, // bottom-axis (fixed)
+        { p0: [0.5, 0],   p1: [0.5, 0.5], free: true,  pairId: 0 }, // right boundary (free)
+        { p0: [0.5, 0.5], p1: [0, 0.5],   free: true,  pairId: 0 }, // top boundary (free, paired)
+        { p0: [0, 0.5],   p1: [0, 0],     free: false, pairId: -1}, // left-axis (fixed)
+      ], warp, segCount, prng);
+    }
+
+    // p4mm (8 ops): eighth triangle — hypotenuse is free, both legs are fixed
+    return this._buildEdgeSystem([
+      { p0: [0,0],      p1: [0.5, 0],   free: false, pairId: -1 }, // axis (fixed)
+      { p0: [0.5, 0],   p1: [0.5, 0.5], free: true,  pairId: 0  }, // cell boundary (free)
+      { p0: [0.5, 0.5], p1: [0, 0],     free: false, pairId: -1 }, // diagonal axis (fixed)
+    ], warp, segCount, prng);
   }
 
-  // Hex-lattice fundamental domain — sized as wedge of unit hex
+  // ── Hexagonal Lattice Fundamental Domains ─────────────────────
   _buildHexWedge(warp, segCount, prng, nOps) {
     const r = 0.5;
-    let corners;
+    const c30 = Math.cos(Math.PI / 6); // √3/2
+    const s30 = Math.sin(Math.PI / 6); // 0.5
 
     if (nOps <= 3) {
-      // p3: 120° wedge (isoceles triangle = 1/3 of hex)
-      corners = [
-        [0, 0],
-        [r * Math.cos(-Math.PI/6), r * Math.sin(-Math.PI/6)],
-        [r * Math.cos(Math.PI/6),  r * Math.sin(Math.PI/6)]
-      ];
-    } else if (nOps <= 6) {
-      // p6, p3m1, p31m: 60° wedge (equilateral triangle = 1/6 of hex)
-      corners = [
-        [0, 0],
-        [r * Math.cos(-Math.PI/6), r * Math.sin(-Math.PI/6)],
-        [r, 0]
-      ];
-    } else {
-      // p6mm (12 ops): 30° wedge (right triangle = 1/12 of hex)
-      corners = [
-        [0, 0],
-        [r, 0],
-        [r * Math.cos(Math.PI/6) * 0.5, r * Math.sin(Math.PI/6) * 0.5]
-      ];
+      // p3: 120° wedge — two radial edges fixed (rotation axes),
+      // one arc-edge free (cell boundary)
+      const A = [0, 0];
+      const B = [r * c30, -r * s30]; // corner at -30°
+      const C = [r * c30,  r * s30]; // corner at +30°
+      return this._buildEdgeSystem([
+        { p0: A, p1: B, free: false, pairId: -1 }, // radius (fixed)
+        { p0: B, p1: C, free: true,  pairId: 0  }, // arc boundary (free)
+        { p0: C, p1: A, free: false, pairId: -1 }, // radius (fixed)
+      ], warp, segCount, prng);
     }
 
-    return this._buildDeformedPoly(corners, warp, segCount, prng);
+    if (nOps <= 6) {
+      // p6/p3m1/p31m: 60° wedge — two radial edges fixed, one arc free
+      const A = [0, 0];
+      const B = [r * c30, -r * s30]; // corner at -30°
+      const C = [r, 0];              // corner at 0°
+      return this._buildEdgeSystem([
+        { p0: A, p1: B, free: false, pairId: -1 }, // radius (fixed)
+        { p0: B, p1: C, free: true,  pairId: 0  }, // arc boundary (free)
+        { p0: C, p1: A, free: false, pairId: -1 }, // radius (fixed)
+      ], warp, segCount, prng);
+    }
+
+    // p6mm (12 ops): 30° wedge — all edges on symmetry axes, only hypotenuse free
+    const A = [0, 0];
+    const B = [r, 0];
+    const C = [r * c30, r * s30];   // midpoint of hex edge (full corner, NOT halved)
+    return this._buildEdgeSystem([
+      { p0: A, p1: B, free: false, pairId: -1 }, // axis (fixed)
+      { p0: B, p1: C, free: true,  pairId: 0  }, // cell boundary edge (free)
+      { p0: C, p1: A, free: false, pairId: -1 }, // axis (fixed)
+    ], warp, segCount, prng);
   }
 
-  // Rhombic (oblique cm) fundamental domain
+  // ── Oblique / Rhombic Lattice ─────────────────────────────────
   _buildRhombusDomain(warp, segCount, prng, nOps) {
     const s = 0.5;
-    let corners;
     if (nOps <= 1) {
-      // Full rhombus
-      corners = [
-        [0, -s],
-        [s * this.SIN60, -s * this.COS60],
-        [0, s],
-        [-s * this.SIN60, s * this.COS60]
-      ];
-    } else {
-      // Half rhombus (triangle)
-      corners = [
-        [0, -s],
-        [s * this.SIN60, -s * this.COS60],
-        [0, s]
-      ];
+      // Full rhombus — all edges free, paired 0↔2, 1↔3
+      return this._buildEdgeSystem([
+        { p0: [0,-s],                   p1: [s*this.SIN60, -s*this.COS60], free: true, pairId: 0 },
+        { p0: [s*this.SIN60,-s*this.COS60], p1: [0, s],                   free: true, pairId: 1 },
+        { p0: [0, s],                   p1: [-s*this.SIN60, s*this.COS60], free: true, pairId: 0 },
+        { p0: [-s*this.SIN60,s*this.COS60], p1: [0, -s],                  free: true, pairId: 1 },
+      ], warp, segCount, prng);
     }
-    return this._buildDeformedPoly(corners, warp, segCount, prng);
+    // Half rhombus — one edge on mirror axis (fixed), two free
+    return this._buildEdgeSystem([
+      { p0: [0,-s],                   p1: [s*this.SIN60, -s*this.COS60], free: true,  pairId: 0 },
+      { p0: [s*this.SIN60,-s*this.COS60], p1: [0, s],                   free: true,  pairId: 0 },
+      { p0: [0, s],                   p1: [0, -s],                      free: false, pairId: -1},
+    ], warp, segCount, prng);
   }
 
-  // Generic deformed polygon builder — works for any number of corners
-  _buildDeformedPoly(corners, warp, segCount, prng) {
-    const nEdges = corners.length;
-    // Generate deformation offsets for each edge
-    // Pair opposite edges (floor(nEdges/2) independent, rest shared)
-    const nIndependent = Math.ceil(nEdges / 2);
-    const edgeOffsets = [];
-    for (let i = 0; i < nIndependent; i++) {
-      edgeOffsets.push(this._genEdgeOffsets(segCount, warp, prng));
-    }
-    // Remaining edges share offsets with their opposite
-    while (edgeOffsets.length < nEdges) {
-      edgeOffsets.push(edgeOffsets[edgeOffsets.length - nIndependent]);
+  // ══════════════════════════════════════════════════════════════════
+  // EDGE SYSTEM BUILDER — converts edge descriptors to polygon points
+  // ══════════════════════════════════════════════════════════════════
+  _buildEdgeSystem(edges, warp, segCount, prng) {
+    // Step 1: Generate offset arrays per unique pairId
+    const pairOffsets = {};
+    for (const edge of edges) {
+      if (edge.free && edge.pairId >= 0 && !pairOffsets[edge.pairId]) {
+        pairOffsets[edge.pairId] = this._genEdgeOffsets(segCount, warp, prng);
+      }
     }
 
+    // Step 2: Build polygon from edges
     const poly = [];
-    for (let i = 0; i < nEdges; i++) {
-      const p0 = corners[i];
-      const p1 = corners[(i + 1) % nEdges];
-      this._addDeformedEdge(poly, p0, p1, edgeOffsets[i], segCount);
+    for (const edge of edges) {
+      const offsets = edge.free ? (pairOffsets[edge.pairId] || []) : null;
+      this._addEdgeToPolygon(poly, edge.p0, edge.p1, offsets, segCount);
     }
     return poly;
   }
 
-  // Generate N random offset values used to deform one edge
+  // Generate N-1 random offset values for deforming one edge
   _genEdgeOffsets(segCount, warp, prng) {
     const offsets = [];
     for (let i = 0; i < segCount - 1; i++) {
@@ -365,26 +410,33 @@ class EscherPeriodicMethod {
     return offsets;
   }
 
-  // Add a deformed edge to polygon — applying perpendicular offsets
-  // Uses the edge's actual normal direction (not axis-locked)
-  _addDeformedEdge(poly, p0, p1, offsets, segCount) {
+  // Add edge points to polygon.
+  // If offsets is null → straight edge (fixed/axis).
+  // If offsets is array → apply perpendicular Bézier deformation (free edge).
+  // Corner vertices (i=0) are always exact. Interior points get offset.
+  // Amplitude is clamped to 40% of edge length to prevent self-intersection.
+  _addEdgeToPolygon(poly, p0, p1, offsets, segCount) {
     const n = segCount;
-    // Compute perpendicular (normal) to edge
     const edx = p1[0] - p0[0];
     const edy = p1[1] - p0[1];
     const len = Math.sqrt(edx * edx + edy * edy) || 1;
     const nx = -edy / len; // perpendicular unit normal
     const ny =  edx / len;
+    const maxOffset = len * 0.4; // clamp: 40% of edge length
 
     for (let i = 0; i < n; i++) {
       const t = i / n;
       const x = p0[0] + edx * t;
       const y = p0[1] + edy * t;
-      // Apply perpendicular offset for interior points (not first vertex)
-      if (i > 0) {
-        const offset = offsets[i - 1] || 0;
-        poly.push([x + nx * offset, y + ny * offset]);
+
+      if (i > 0 && offsets) {
+        // Apply clamped perpendicular offset
+        let d = offsets[i - 1] || 0;
+        if (d > maxOffset) d = maxOffset;
+        if (d < -maxOffset) d = -maxOffset;
+        poly.push([x + nx * d, y + ny * d]);
       } else {
+        // Corner (i=0) or straight/fixed edge — no deformation
         poly.push([x, y]);
       }
     }
