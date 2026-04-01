@@ -408,34 +408,6 @@ function affineCompose(a, b) {
   ];
 }
 
-// Polygon batch renderer — single beginPath/fill for many polygons
-// Dramatically faster than per-polygon fillStyle changes.
-function fillPolygonBatch(ctx, polygons, fillStyle) {
-  if (polygons.length === 0) return;
-  ctx.fillStyle = fillStyle;
-  ctx.beginPath();
-  for (let i = 0; i < polygons.length; i++) {
-    const poly = polygons[i];
-    ctx.moveTo(poly[0].x | 0, poly[0].y | 0);
-    for (let j = 1; j < poly.length; j++) ctx.lineTo(poly[j].x | 0, poly[j].y | 0);
-    ctx.closePath();
-  }
-  ctx.fill();
-}
-
-function strokePolygonBatch(ctx, polygons, strokeStyle, lineWidth) {
-  if (polygons.length === 0) return;
-  ctx.strokeStyle = strokeStyle;
-  ctx.lineWidth = lineWidth;
-  ctx.beginPath();
-  for (let i = 0; i < polygons.length; i++) {
-    const poly = polygons[i];
-    ctx.moveTo(poly[0].x | 0, poly[0].y | 0);
-    for (let j = 1; j < poly.length; j++) ctx.lineTo(poly[j].x | 0, poly[j].y | 0);
-    ctx.closePath();
-  }
-  ctx.stroke();
-}
 
 // Bézier edge deformation — generates deformed edge between p0 and p1
 // amplitude: max deviation (clamped to 0.4 × edgeLength for safety)
@@ -498,9 +470,51 @@ const MethodRegistry = {
   _methods: {},
 
   register(method) {
-    if (!method.id || !method.render || !method.params) {
-      throw new Error(`Method missing required fields: id, render, params`);
+    const errors = [];
+    const id = method.id || '(unknown)';
+
+    // ── Required top-level fields ──
+    if (typeof method.id !== 'string')          errors.push('missing id (string)');
+    if (typeof method.name !== 'string')        errors.push('missing name (string)');
+    if (method.version === undefined)           errors.push('missing version');
+    if (method.type !== '2d' && method.type !== '3d') errors.push("type must be '2d' or '3d'");
+    if (typeof method.description !== 'string') errors.push('missing description (string)');
+    if (typeof method.render !== 'function')    errors.push('missing render (function)');
+    if (typeof method.narrative !== 'function') errors.push('missing narrative(p) (function)');
+    if (typeof method.equation !== 'function')  errors.push('missing equation(p) (function)');
+
+    // ── Palettes ──
+    if (!Array.isArray(method.palettes) || method.palettes.length === 0) {
+      errors.push('palettes must be an array with ≥1 entry');
+    } else {
+      method.palettes.forEach((pal, i) => {
+        if (!pal.name)  errors.push(`palettes[${i}] missing name`);
+        if (!pal.mood)  errors.push(`palettes[${i}] missing mood`);
+        if (!Array.isArray(pal.colors) || pal.colors.length === 0) {
+          errors.push(`palettes[${i}] missing colors[]`);
+        } else if (typeof pal.colors[0] !== 'object' || pal.colors[0].h === undefined) {
+          errors.push(`palettes[${i}].colors must be {h,s,l} objects, not strings`);
+        }
+      });
     }
+
+    // ── Params ──
+    if (!Array.isArray(method.params)) {
+      errors.push('params must be an array');
+    } else {
+      method.params.forEach((p, i) => {
+        if (!p.key)                    errors.push(`params[${i}] missing key`);
+        if (typeof p.label !== 'string') errors.push(`params[${i}] (${p.key || '?'}) missing label (string)`);
+        if (p.default === undefined)   errors.push(`params[${i}] (${p.key || '?'}) missing default`);
+      });
+    }
+
+    // ── Verdict ──
+    if (errors.length > 0) {
+      console.error(`MethodRegistry: REJECTED '${id}' — ${errors.length} schema violations:\n  • ${errors.join('\n  • ')}`);
+      return; // Do NOT register
+    }
+
     this._methods[method.id] = method;
   },
 

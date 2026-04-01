@@ -49,6 +49,7 @@ Generate complex, beautiful, iterative art through the composition of mathematic
 5. **Iterative by default:** Always offer to iterate on any generated output
 6. **No unauthorized browser testing:** Never test the application UI in a browser subagent (Chrome) unless explicitly requested by the user.
 7. **Continuous Versioning:** Whenever a method implementation is finished or system components are stabilized, the changes MUST be committed and pushed to GitHub immediately to protect progress.
+8. **Method Schema Gate:** Every method MUST pass `MethodRegistry`'s runtime schema validator before registration. No method shall be committed to the repository with missing required fields (`id`, `name`, `version`, `type`, `description`, `palettes` with `{h,s,l}` colors, `params` with `label` and `default`, `narrative`, `equation`, `render`). Violation = immediate rejection at load time with console errors. Follow `/new-method` workflow strictly.
 
 ---
 

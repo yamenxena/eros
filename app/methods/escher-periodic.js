@@ -8,16 +8,18 @@ class EscherPeriodicMethod {
   constructor() {
     this.id = 'escher-periodic';
     this.name = 'Periodic Division';
+    this.version = 1;
     this.type = '2d';
+    this.description = 'Regular division of the plane using 12 wallpaper symmetry groups with Bézier edge deformation';
 
     this.params = [
-      { key: 'seed',           type: 'number', default: 42 },
-      { key: 'wallpaperGroup', type: 'select', options: ['p1','p2','p3','p4','p6','pm','pg','cm','p4mm','p6mm','p3m1','p31m'] },
-      { key: 'tileScale',      type: 'range',  min: 40, max: 300, default: 120 },
-      { key: 'edgeWarp',       type: 'range',  min: 0, max: 100, default: 25, scale: 0.01 },
-      { key: 'motifComplexity',type: 'range',  min: 3, max: 12, default: 5 },
-      { key: 'lineWeight',     type: 'range',  min: 0, max: 5, default: 1.5, scale: 0.5 },
-      { key: 'filmGrain',      type: 'range',  min: 0, max: 50, default: 15 }
+      { key: 'seed',            label: 'Seed',            type: 'number', min: 1, max: 99999, default: 42 },
+      { key: 'wallpaperGroup',  label: 'Symmetry Group',  type: 'select', options: ['p1','p2','p3','p4','p6','pm','pg','cm','p4mm','p6mm','p3m1','p31m'], default: 'p4' },
+      { key: 'tileScale',       label: 'Tile Scale',      type: 'range',  min: 40, max: 300, default: 120 },
+      { key: 'edgeWarp',        label: 'Edge Warp',       type: 'range',  min: 0, max: 100, default: 25, scale: 0.01, precision: 2 },
+      { key: 'motifComplexity', label: 'Motif Complexity', type: 'range', min: 3, max: 12, default: 5 },
+      { key: 'lineWeight',      label: 'Line Weight',     type: 'range',  min: 0, max: 5, default: 1.5, scale: 0.5, precision: 1 },
+      { key: 'filmGrain',       label: 'Film Grain',      type: 'range',  min: 0, max: 50, default: 15 }
     ];
 
     this.palettes = [
@@ -125,6 +127,25 @@ class EscherPeriodicMethod {
         ]
       }
     };
+  }
+
+  narrative(p) {
+    const groupName = p.wallpaperGroup || 'p4';
+    const warpWord = p.edgeWarp < 0.1 ? 'rigid, crystalline' :
+      p.edgeWarp < 0.4 ? 'gently undulating' :
+      p.edgeWarp < 0.7 ? 'organically deformed' : 'wildly fluid';
+    return `A ${groupName} wallpaper-group tessellation of ${warpWord} tiles at scale ${p.tileScale}px. ` +
+      `Each fundamental domain carries ${p.motifComplexity} vertices, subdivided by Bézier edge deformation. ` +
+      `The plane is divided according to Escher's principle: no gaps, no overlaps, infinite repetition.`;
+  }
+
+  equation(p) {
+    return `E(x, y, seed=${p.seed}, group=${p.wallpaperGroup || 'p4'})\n\n` +
+      `1. F_domain = generatrix(C=${p.motifComplexity}, warp=${(p.edgeWarp || 0).toFixed(2)})\n` +
+      `2. T_lattice = lattice_${p.wallpaperGroup || 'p4'}(S=${p.tileScale})\n` +
+      `3. P_tile  = affineTransform(F_domain, ops[group])\n` +
+      `4. color   = palette[fastHash(i, j, opIdx) % |palette|]\n` +
+      `5. grain   = filmGrain(${p.filmGrain}, seed)`;
   }
 
   render(canvas, ctx, W, H, params, palette) {

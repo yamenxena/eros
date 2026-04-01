@@ -21,6 +21,7 @@ const MyMethod = {
   name: 'My Method Name',
   description: 'One-line description.',
   version: 1,
+  type: '2d',  // or '3d'
 
   // REQUIRED — at least one palette
   palettes: [
@@ -42,16 +43,17 @@ const MyMethod = {
     // Alpha must always be 255 (fully opaque) — no partial transparency
   },
 
-  // REQUIRED — all animatable params must be type: 'range'
+  // REQUIRED — every param MUST have key, label, and default
   params: [
-    { key: 'seed',    type: 'number', min: 1,   max: 99999, default: 42 },
-    { key: 'erosion', type: 'range',  min: 0,   max: 100,   default: 0,
+    { key: 'seed',    label: 'Seed',    type: 'number', min: 1, max: 99999, default: 42 },
+    { key: 'erosion', label: 'Erosion', type: 'range',  min: 0, max: 100,   default: 0,
       scale: 0.01, precision: 2 },
-    // Add all other knobs as 'range' for full animation support
+    { key: 'mode',    label: 'Mode',    type: 'select', options: ['a','b'], default: 'a' },
   ],
 
-  narrative(p) { return `...`; },
-  equation(p)  { return `...`; },
+  // REQUIRED — Concept tab
+  narrative(p) { return `Description using params: seed=${p.seed}...`; },
+  equation(p)  { return `E(x, y, seed=${p.seed})...`; },
 };
 
 MethodRegistry.register(MyMethod);

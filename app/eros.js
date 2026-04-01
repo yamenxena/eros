@@ -975,7 +975,7 @@ function doRender() {
       info.textContent = 'Render Error — check console';
     } finally {
       renderPending = false;
-      updateConcept();
+      try { updateConcept(); } catch (e) { console.warn('Concept tab update failed:', e); }
     }
   });
 }
