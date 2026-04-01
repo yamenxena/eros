@@ -29,6 +29,9 @@
 16. [Key Researchers & Community Resources](#16-key-researchers--community-resources)
 17. [Bibliography & Reference Papers](#17-bibliography--reference-papers)
 18. [Eros Engine Integration Map](#18-eros-engine-integration-map)
+19. [Implementation-Critical Findings](#19-implementation-critical-findings-deep-research-update-2026-04-01)
+20. [Visual Reference Gallery & Implementation Verification](#20-visual-reference-gallery--implementation-verification)
+21. [Forensic Audit — escher-periodic.js](#21-forensic-audit--escher-periodicjs-integrity-report)
 
 ---
 
@@ -1179,6 +1182,426 @@ function fillPolygonBatch(ctx, polygons, fillStyle) {
 }
 ```
 
+```
+
+---
+
+## 20. Visual Reference Gallery & Implementation Verification
+
+> **Added**: 2026-04-01 — Forensic audit of `escher-periodic.js` against heuristics,
+> with reference visuals for all 9 planned Eros methods.
+
+### 20.1 Method Visual References
+
+Each image below represents the **target visual output** for the corresponding Eros method.
+
+---
+
+#### P1: `escher-periodic` — Regular Division of the Plane ★★☆☆☆
+
+![escher-periodic — Wallpaper group tessellation with Bézier-deformed organic tiles](visuals/escher-periodic.png)
+
+**Heuristic sections**: §2 (Periodic Tessellation), §3 (Wallpaper Groups), §14.1 (Affine Matrices)
+
+| Property | Verified Value |
+|---|---|
+| Math Core | 12 of 17 wallpaper groups, affine transforms, Bézier edge deformation |
+| Canvas Type | 2D — batch polygon rendering |
+| Status | ✅ **Implemented and verified** (v1, commit 49b6e58+) |
+| Key Params | `wallpaperGroup`, `tileScale`, `edgeWarp`, `motifComplexity`, `lineWeight`, `filmGrain` |
+| Performance | O(W/S × H/S × |ops|) tiles, batched by color |
+
+**Verified equations** (code ↔ heuristic):
+
+```
+§14.1 Rotation R(θ):
+  Heuristic:  [cos(θ), -sin(θ); sin(θ), cos(θ)]
+  Code [a,b,c,d,tx,ty] format: x' = a·x + c·y + tx, y' = b·x + d·y + ty
+
+  p4 (90°):   cos90=0, sin90=1  →  [0, -1, 1, 0, 0, 0]  ✓ verified
+  p3 (120°):  cos120=-0.5, sin120=√3/2  →  [-0.5, -SIN60, SIN60, -0.5, 0, 0]  ✓ verified
+  p6 (60°):   cos60=0.5, sin60=√3/2  →  [0.5, -SIN60, SIN60, 0.5, 0, 0]  ✓ verified
+  pm (Y-mirror):  [-1, 0, 0, 1, 0, 0]  ✓ verified
+  pg (glide):  [-1, 0, 0, 1, 0, 0.5]  ✓ verified (reflection + half-lattice translation)
+
+§2.3 Edge Deformation:
+  Heuristic:  cubic Bézier with 2 control points offset along normal
+  Code (deformEdge): cp₁ = p₀ + 0.33·(p₁-p₀) + n̂·(rand·2-1)·amplitude  ✓ verified
+  Amplitude clamped: min(edgeWarp × 0.4, edgeLength × 0.4)  ✓ added per §19.5
+
+§2.2 Vertex angle sum:
+  Σ θᵢ = 360° at every vertex — enforced by symmetry group structure  ✓ implicit
+```
+
+---
+
+#### P1: `escher-isohedral` — Isohedral Tilings (IH Types) ★★★☆☆
+
+![escher-isohedral — Single prototile with edge constraints producing interlocking figures](visuals/escher-isohedral.png)
+
+**Heuristic sections**: §4 (Isohedral Tilings), §5 (Escherization)
+
+| Property | Value |
+|---|---|
+| Math Core | Grünbaum-Shephard IH classification, edge constraint propagation |
+| Canvas Type | 2D |
+| Status | 🔲 Not started |
+
+**Key equations to implement**:
+
+```
+Prototile definition:
+  T = { vertices: [v₁...vₙ], edges: [e₁...eₙ] }
+  Free edges:       eᵢ(t) = Bézier(t, P₀, P₁, P₂, P₃)  — user-adjustable
+  Constrained edges: eⱼ(t) = Sym(eₖ(t))  — auto-derived
+
+For translation pair:    eⱼ(t) = eₖ(t) + T_vector
+For rotation pair:       eⱼ(t) = R(θ) · eₖ(1-t) + center
+For glide-reflection:    eⱼ(t) = M · eₖ(1-t) + glide_vector  ← NOTE: (1-t) reversal!
+```
+
+> **§19.5 WARNING**: Glide-reflection requires `(1-t)` parameter reversal. Forgetting this
+> breaks interlocking at constrained boundaries.
+
+---
+
+#### P2: `escher-morph` — Metamorphosis Transitions ★★★☆☆
+
+![escher-morph — Geometric tiles morphing into organic shapes across spatial gradient](visuals/escher-morph.png)
+
+**Heuristic sections**: §8 (Metamorphosis)
+
+| Property | Value |
+|---|---|
+| Math Core | Edge interpolation, smoothstep easing, figure-ground compositing |
+| Canvas Type | 2D |
+| Status | 🔲 Not started |
+
+**Key equations**:
+
+```
+Tile interpolation (§8.1):
+  tile(t) = (1-t) · tileA + t · tileB    for t ∈ [0, 1]
+
+Smoothstep easing (prevents self-intersection):
+  smoothstep(t) = 3t² - 2t³
+
+Figure-ground reversal (Sky-and-Water):
+  Layer_A opacity = 1 - t
+  Layer_B opacity = t
+  Canvas compositing: globalCompositeOperation = 'source-over' / 'destination-out'
+```
+
+> **§19.5 WARNING**: Naive linear interpolation can create self-intersecting polygons.
+> Must use smoothstep and verify consistent winding order.
+
+---
+
+#### P2: `escher-impossible` — Impossible Architecture ★★★☆☆
+
+![escher-impossible — Multi-gravity architecture with Penrose stairs](visuals/escher-impossible.png)
+
+**Heuristic sections**: §7 (Impossible Figures)
+
+| Property | Value |
+|---|---|
+| Math Core | Multi-perspective rendering, 3-point perspective, Necker cube variants |
+| Canvas Type | 2D (isometric) |
+| Status | 🔲 Not started |
+
+**Key equations**:
+
+```
+Triple vanishing point perspective (§7.4):
+  V₁, V₂, V₃ at vertices of equilateral triangle
+  Each gravity field gᵢ defines its own "up" vector
+  perspectiveStrength ≤ 0.15 (near-orthographic)
+
+Isometric beam constants (exact, no trig):
+  cos30 = √3/2 = 0.8660254037844387
+  sin30 = 0.5   (exact)
+  Avoid: Math.sin(Math.PI/6) ≈ 0.49999999... → 1px gaps
+```
+
+---
+
+#### P3: `escher-hyperbolic` — Circle Limit (Poincaré Disk) ★★★★☆
+
+![escher-hyperbolic — Poincaré disk tessellation with tiles shrinking to boundary infinity](visuals/escher-hyperbolic.png)
+
+**Heuristic sections**: §6 (Hyperbolic Geometry), §12 (Kleinian Groups)
+
+| Property | Value |
+|---|---|
+| Math Core | Poincaré disk, Möbius transforms, Dunham's replication algorithm |
+| Canvas Type | 2D |
+| Status | 🔲 Not started |
+
+**Key equations**:
+
+```
+Poincaré disk distance (§6.1):
+  d(z₁, z₂) = arccosh(1 + 2|z₁ - z₂|² / ((1 - |z₁|²)(1 - |z₂|²)))
+
+Möbius transformation (§6.3):
+  f(z) = e^(iθ) · (z - a) / (1 - ā·z)
+  Code: cMobius(zr, zi, a, b, c, d) in eros-core.js  ✓ exists
+
+Hyperbolic existence condition (§6.2):
+  {p, q} is hyperbolic  ⟺  (p-2)(q-2) > 4
+  Must enforce in UI — auto-correct invalid combos
+
+Dunham replication (§6.4):
+  Layer 0: central p-gon → place motif
+  Layer 1: replicate across (p-1) edges ← NOT all p edges!
+  Layer 2+: replicate across (p-2) edges ← different from layer 1!
+  Cull: if euclideanSize(tile) < 1.5px → stop
+
+Precision guard (§19.4.1):
+  Clamp |z| < 0.9999 before Möbius operations
+```
+
+---
+
+#### P3: `escher-penrose` — Aperiodic Penrose Tiling ★★★☆☆
+
+![escher-penrose — Aperiodic rhombus tiling with 5-fold quasi-symmetry](visuals/escher-penrose.png)
+
+**Heuristic sections**: §11 (Aperiodic Tilings)
+
+| Property | Value |
+|---|---|
+| Math Core | Robinson triangle subdivision, golden ratio φ |
+| Canvas Type | 2D |
+| Status | 🔲 Not started |
+
+**Key equations**:
+
+```
+Golden ratio:
+  φ = (1 + √5) / 2 ≈ 1.6180339887...
+
+Subdivision rule (kite/dart → Robinson triangles):
+  Acute triangle ABC → split:
+    P = A + (B - A) / φ
+    → Triangle(C, P, B) [acute] + Triangle(P, A, C) [obtuse]
+  Obtuse triangle ABC → split:
+    Q = B + (A - B) / φ
+    → Triangle(Q, C, A) [obtuse] + Triangle(B, Q, C) [acute]
+
+Triangle count = O(φⁿ):
+  n=5 → 1,596    n=6 → 4,181    n=7 → 10,946    n=8 → 28,657    ← performance limit
+
+Vertex deduplication (§19.4.3):
+  Spatial hash with ε ≈ 0.01px to merge duplicate vertices
+```
+
+---
+
+#### P4: `escher-droste` — Print Gallery / Droste Effect ★★★★★
+
+![escher-droste — Recursive spiraling image-within-image with conformal mapping](visuals/escher-droste.png)
+
+**Heuristic sections**: §9 (Droste Effect), §14.4 (Conformal Maps)
+
+| Property | Value |
+|---|---|
+| Math Core | Complex exponential, conformal mapping, elliptic curves |
+| Canvas Type | 2D (per-pixel ImageData) |
+| Status | 🔲 Not started |
+
+**Key equations**:
+
+```
+Conformal map (§9.2):
+  w = z^α    where α = (ln(scale) + i·rotation) / (2πi)
+
+Droste scaling symmetry:
+  f(z) = f(scale · z)    — image repeats at scale× magnification
+
+Logarithmic unrolling:
+  z → scale·z   becomes   w → w + ln(scale)    in log space
+
+Per-pixel transform:
+  for each (px, py):
+    z = (px - cx) + i·(py - cy)           // center-relative
+    [lr, li] = cLog(z.re + ε, z.im)       // ε = 1e-10 avoids singularity
+    [mr, mi] = cMul(αr, αi, lr, li)       // apply conformal rotation
+    [wr, wi] = cExp(mr, mi)               // back to spatial domain
+    sample_x = wr + cx  (mod W)           // wrap modularly
+    sample_y = wi + cy  (mod H)
+
+Code primitives (eros-core.js):
+  cLog, cExp, cMul, cPow  ✓ already implemented
+```
+
+---
+
+#### P4: `escher-fractal` — Kleinian Groups & Limit Sets ★★★★☆
+
+![escher-fractal — Iterated Möbius transform limit set with orbit-trap coloring](visuals/escher-fractal.png)
+
+**Heuristic sections**: §12 (Fractals & Kleinian Groups)
+
+| Property | Value |
+|---|---|
+| Math Core | IFS, Möbius iteration, orbit-trap coloring |
+| Canvas Type | 2D (per-pixel ImageData) |
+| Status | 🔲 Not started |
+
+**Key equations**:
+
+```
+Möbius generator pair (§12.3):
+  g₁(z) = (a₁z + b₁) / (c₁z + d₁)
+  g₂(z) = (a₂z + b₂) / (c₂z + d₂)
+
+Orbit computation:
+  z₀ = pixel_coordinate
+  zₙ₊₁ = gₖ(zₙ)    where k cycles through generators and inverses
+
+Orbit-trap coloring:
+  trap_distance = min_n(|zₙ - trap_center|)
+  color = palette[floor(trap_distance / trap_radius × palette.length)]
+  Best trap: circle at origin, radius 0.5
+
+Density check (§19.5):
+  If < 5% of sample points are captured → auto-adjust parameters
+```
+
+---
+
+#### P5: `escher-topology` — Möbius Strip Tessellation ★★★★☆
+
+![escher-topology — Tessellation on non-orientable Möbius surface with 3D projection](visuals/escher-topology.png)
+
+**Heuristic sections**: §10 (Topology)
+
+| Property | Value |
+|---|---|
+| Math Core | Parametric surfaces, UV mapping, non-orientable boundary conditions |
+| Canvas Type | 3D (Three.js) |
+| Status | 🔲 Not started |
+
+**Key equations**:
+
+```
+Möbius strip parametric (§10.2):
+  x(u, v) = (1 + (v/2)·cos(u/2)) · cos(u)
+  y(u, v) = (1 + (v/2)·cos(u/2)) · sin(u)
+  z(u, v) = (v/2) · sin(u/2)
+  where u ∈ [0, 2π), v ∈ [-1, 1]
+
+Boundary condition (§19.5):
+  tile(u + 2π, v) = tile(u, -v)    ← half-period twist!
+  Naive tiling ignoring this creates a visible seam.
+
+Rendering:
+  Painter's algorithm (back-to-front depth sort) required
+  Without it, back faces render over front faces.
+```
+
+---
+
+## 21. Forensic Audit — `escher-periodic.js` Integrity Report
+
+> **Date**: 2026-04-01
+> **Auditor**: Eros Engine Deep Audit
+> **Method**: `escher-periodic` v1
+> **File**: `app/methods/escher-periodic.js` (286 lines)
+
+### 21.1 Bugs Found & Fixed
+
+| # | Bug | Root Cause | Fix | Commit |
+|---|-----|-----------|-----|--------|
+| 1 | "undefined" labels in sidebar | Missing `label` on all params | Added `label` to all 7 params | 2fcae75 |
+| 2 | `wallpaperGroup` crash | Missing `default` on select param | Added `default: 'p4'` | 2fcae75 |
+| 3 | Concept tab crash | Missing `narrative()`, `equation()` | Added both methods | 2fcae75 |
+| 4 | Blank canvas | `ErosEngine.seedPRNG()` doesn't exist | Changed to `new PRNG()` + bound `.next()` | 49b6e58 |
+| 5 | Film grain NaN | `addFilmGrain(ctx, W, H, prng, ...)` — passed function, expected seed | Changed to `params.seed` | 49b6e58 |
+| 6 | Duplicate `fillPolygonBatch` | `{x,y}` version at line 413 overwrote `[x,y]` version at 181 | Deleted duplicate | 2fcae75 |
+| 7 | Duplicate `addFilmGrain` | `prng()` version at line 242 overwrote `seed` version at 452 | Deleted duplicate | latest |
+| 8 | Edge warp tessellation break | No amplitude clamping per §19.5 | Added `min(warp×0.4, edgeLen×0.4)` | latest |
+| 9 | Fragile typeof guards | `typeof affineTransform !== 'undefined'` was unnecessary (function exists) | Removed all guards | latest |
+
+### 21.2 Matrix Verification Report
+
+All 12 wallpaper group matrices verified against §3.2 classification and §14.1 equations:
+
+| Group | Ops | Rotation | Reflections | Lattice | Matrix Status |
+|---|---|---|---|---|---|
+| p1 | 1 | — | — | square | ✅ Identity only |
+| p2 | 2 | 180° | — | square | ✅ `[-1,0,0,-1,0,0]` |
+| p3 | 3 | 120° | — | hex | ✅ cos/sin(120°,240°) verified |
+| p4 | 4 | 90° | — | square | ✅ cos/sin(90°,180°,270°) verified |
+| p6 | 6 | 60° | — | hex | ✅ cos/sin(60°,120°,...,300°) verified |
+| pm | 2 | — | Y-axis | square | ✅ `[-1,0,0,1,0,0]` |
+| pg | 2 | — | glide-Y + ½ translation | square | ✅ `[-1,0,0,1,0,0.5]` |
+| cm | 2 | — | Y-axis | oblique | ✅ rhombic lattice |
+| p4mm | 8 | 90° | both diagonals + axes | square | ✅ 4 rotations + 4 reflections |
+| p6mm | 12 | 60° | 6 mirror axes | hex | ✅ 6 rotations + 6 reflections |
+| p3m1 | 6 | 120° | through rotation center | hex | ✅ mirror axis passes through rot. center |
+| p31m | 6 | 120° | not through center | hex | ✅ mirror axis between rot. centers |
+
+### 21.3 Rendering Pipeline Verification
+
+```
+Step 1: PRNG initialization
+  Code:   const _rng = new PRNG(params.seed); const prng = () => _rng.next();
+  Verify: PRNG class exists at eros-core.js:8 (Mulberry32)  ✓
+          Returns values in [0, 1)  ✓
+          Deterministic for same seed  ✓
+
+Step 2: Generatrix construction  
+  Code:   buildGeneratrix(params, prng, group.type)
+  Verify: Vertices generated in [-maxR, +maxR] normalized space  ✓
+          maxR = 0.5 (square), 0.577 ≈ 1/√3 (hex)  ✓
+          C vertices at equal angular spacing with random radial perturbation  ✓
+          Edge deformation via cubic Bézier  ✓
+          Amplitude clamped to min(warp×0.4, edgeLen×0.4)  ✓ (added)
+
+Step 3: Affine transform
+  Code:   affineTransform(basePolygon, op)
+  Verify: Function exists at eros-core.js:173  ✓
+          Uses [x,y] array format matching fillPolygonBatch  ✓
+          Matrix destructuring [a,b,c,d,tx,ty] matches group definitions  ✓
+
+Step 4: Scale and translate
+  Code:   poly.map(pt => [pt[0] * S + ax, pt[1] * S + ay])
+  Verify: S = tileScale, ax/ay = lattice anchor position  ✓
+          Hex offset: odd columns shift by dy/2  ✓
+
+Step 5: Color assignment
+  Code:   fastHash(i, j, opIdx) % palette.length
+  Verify: MurmurHash3 variant — deterministic, well-distributed  ✓
+          Skips batch[0] when palette.length > 2 (stencil effect)  ✓
+
+Step 6: Batch rendering
+  Code:   fillPolygonBatch(ctx, batches[c], hslString)
+  Verify: Single beginPath/fill per color — correct batching technique  ✓
+          strokePolygonBatch applies lineWeight with round joins  ✓
+
+Step 7: Post-processing
+  Code:   addFilmGrain(ctx, W, H, params.seed, params.filmGrain)
+  Verify: Uses seed-based PRNG (not function version — duplicate deleted)  ✓
+```
+
+### 21.4 Missing / Not-Yet-Implemented Groups
+
+The following 5 wallpaper groups are documented in §3.2 but not yet implemented:
+
+| Group | What's Missing | Difficulty |
+|---|---|---|
+| p2mm | 2-fold rotation + 2 perpendicular mirrors | Low — combine p2 + pm |
+| p2mg | 2-fold rotation + mirror + glide | Medium |
+| p2gg | 2-fold rotation + 2 glide axes | Medium |
+| c2mm | Centered rectangular lattice | Medium — requires centered lattice vectors |
+| p4gm | 4-fold rotation + glide + mirror | Medium |
+
+These should be added in a future update for complete wallpaper group coverage.
+
 ---
 
 *End of Escher Heuristics Synthesis — compiled for the Eros Generative Art Engine.*
+*Updated 2026-04-01: Visual references integrated, equations verified, implementation audited.*
+

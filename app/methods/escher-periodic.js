@@ -195,7 +195,7 @@ class EscherPeriodicMethod {
             for (let opIdx = 0; opIdx < group.ops.length; opIdx++) {
                 const op = group.ops[opIdx];
                 // Apply affine transform to base polygon
-                let poly = typeof affineTransform !== 'undefined' ? affineTransform(basePolygon, op) : basePolygon;
+                let poly = affineTransform(basePolygon, op);
                 
                 // Translate by lattice anchor and scale
                 poly = poly.map(pt => [
@@ -223,15 +223,13 @@ class EscherPeriodicMethod {
       const colObj = palette[c];
       const colStr = `hsl(${colObj.h}, ${colObj.s}%, ${colObj.l}%)`;
       
-      if (typeof fillPolygonBatch !== 'undefined') {
-        fillPolygonBatch(ctx, batches[c], colStr);
-      }
-      if (params.lineWeight > 0 && typeof strokePolygonBatch !== 'undefined') {
+      fillPolygonBatch(ctx, batches[c], colStr);
+      if (params.lineWeight > 0) {
         strokePolygonBatch(ctx, batches[c], '#0d0a14', params.lineWeight);
       }
     }
 
-    if (params.filmGrain > 0 && typeof addFilmGrain !== 'undefined') {
+    if (params.filmGrain > 0) {
       addFilmGrain(ctx, W, H, params.seed, params.filmGrain);
     }
   }
@@ -258,9 +256,11 @@ class EscherPeriodicMethod {
     for(let i = 0; i < pts.length; i++) {
         const next = pts[(i+1) % pts.length];
         // Only deform if edge warp is > 0
-        if (params.edgeWarp > 0 && typeof deformEdge !== 'undefined') {
-          // Pass absolute warp value (max 0.2 units in parameter space)
-          const segs = deformEdge(pts[i], next, params.edgeWarp * 0.4, prng, 4);
+        if (params.edgeWarp > 0) {
+          // Clamp amplitude to 0.4 × edge length to prevent tessellation breakage (§19.5)
+          const edgeLen = Math.sqrt((next[0]-pts[i][0])**2 + (next[1]-pts[i][1])**2);
+          const amp = Math.min(params.edgeWarp * 0.4, edgeLen * 0.4);
+          const segs = deformEdge(pts[i], next, amp, prng, 4);
           deformed.push(...segs.slice(0, -1));
         } else {
           deformed.push(pts[i]);

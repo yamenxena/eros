@@ -239,18 +239,6 @@ function deformEdge(p0, p1, amplitude, prng, segments = 8) {
   return pts;
 }
 
-function addFilmGrain(ctx, W, H, prng, intensity) {
-  if (intensity <= 0) return;
-  const imageData = ctx.getImageData(0, 0, W, H);
-  const data = imageData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const noise = (prng() - 0.5) * intensity * 2.55;
-    data[i] = Math.min(255, Math.max(0, data[i] + noise));
-    data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
-    data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
-  }
-  ctx.putImageData(imageData, 0, 0);
-}
 
 // ── Distance Metrics ──────────────────────────────────────────
 function euclideanDist(x1, y1, x2, y2) {
