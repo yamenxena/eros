@@ -214,6 +214,166 @@ const SemanticMap = {
   }
 };
 
+// ── Escher Shared Utilities ───────────────────────────────────
+// Complex arithmetic — inline, no object allocation in hot paths
+// All functions use (real, imag) pairs to avoid GC pressure.
+
+function cMul(ar, ai, br, bi) {
+  return [ar * br - ai * bi, ar * bi + ai * br];
+}
+
+function cDiv(ar, ai, br, bi) {
+  const d = br * br + bi * bi + 1e-30; // ε guard: avoid div-by-zero
+  return [(ar * br + ai * bi) / d, (ai * br - ar * bi) / d];
+}
+
+function cExp(r, i) {
+  const e = Math.exp(r);
+  return [e * Math.cos(i), e * Math.sin(i)];
+}
+
+function cLog(r, i) {
+  return [Math.log(Math.sqrt(r * r + i * i) + 1e-30), Math.atan2(i, r)];
+}
+
+function cPow(zr, zi, ar, ai) {
+  const lr = Math.log(Math.sqrt(zr * zr + zi * zi) + 1e-30);
+  const li = Math.atan2(zi, zr);
+  const mr = ar * lr - ai * li;
+  const mi = ar * li + ai * lr;
+  const e = Math.exp(mr);
+  return [e * Math.cos(mi), e * Math.sin(mi)];
+}
+
+function cMobius(zr, zi, ar, ai, br, bi, cr, ci, dr, di) {
+  // f(z) = (a·z + b) / (c·z + d)
+  const nr = ar * zr - ai * zi + br;
+  const ni = ar * zi + ai * zr + bi;
+  const denr = cr * zr - ci * zi + dr;
+  const deni = cr * zi + ci * zr + di;
+  const dd = denr * denr + deni * deni + 1e-30;
+  return [(nr * denr + ni * deni) / dd, (ni * denr - nr * deni) / dd];
+}
+
+// Affine transform helper — applies [a,b,c,d,tx,ty] matrix to point array
+// Same convention as ctx.transform(a, b, c, d, e, f)
+function affineTransformPt(px, py, m) {
+  return { x: m[0] * px + m[2] * py + m[4], y: m[1] * px + m[3] * py + m[5] };
+}
+function affineTransformPts(points, m) {
+  const out = new Array(points.length);
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    out[i] = { x: m[0] * p.x + m[2] * p.y + m[4], y: m[1] * p.x + m[3] * p.y + m[5] };
+  }
+  return out;
+}
+
+// Build affine matrix helpers
+function affineIdentity() { return [1, 0, 0, 1, 0, 0]; }
+function affineTranslate(tx, ty) { return [1, 0, 0, 1, tx, ty]; }
+function affineRotate(theta) {
+  const c = Math.cos(theta), s = Math.sin(theta);
+  return [c, s, -s, c, 0, 0];
+}
+function affineReflect(axisAngle) {
+  const c2 = Math.cos(2 * axisAngle), s2 = Math.sin(2 * axisAngle);
+  return [c2, s2, s2, -c2, 0, 0];
+}
+function affineCompose(a, b) {
+  // Result = A·B (apply B first, then A)
+  return [
+    a[0]*b[0] + a[2]*b[1], a[1]*b[0] + a[3]*b[1],
+    a[0]*b[2] + a[2]*b[3], a[1]*b[2] + a[3]*b[3],
+    a[0]*b[4] + a[2]*b[5] + a[4], a[1]*b[4] + a[3]*b[5] + a[5]
+  ];
+}
+
+// Polygon batch renderer — single beginPath/fill for many polygons
+// Dramatically faster than per-polygon fillStyle changes.
+function fillPolygonBatch(ctx, polygons, fillStyle) {
+  if (polygons.length === 0) return;
+  ctx.fillStyle = fillStyle;
+  ctx.beginPath();
+  for (let i = 0; i < polygons.length; i++) {
+    const poly = polygons[i];
+    ctx.moveTo(poly[0].x | 0, poly[0].y | 0);
+    for (let j = 1; j < poly.length; j++) ctx.lineTo(poly[j].x | 0, poly[j].y | 0);
+    ctx.closePath();
+  }
+  ctx.fill();
+}
+
+function strokePolygonBatch(ctx, polygons, strokeStyle, lineWidth) {
+  if (polygons.length === 0) return;
+  ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  for (let i = 0; i < polygons.length; i++) {
+    const poly = polygons[i];
+    ctx.moveTo(poly[0].x | 0, poly[0].y | 0);
+    for (let j = 1; j < poly.length; j++) ctx.lineTo(poly[j].x | 0, poly[j].y | 0);
+    ctx.closePath();
+  }
+  ctx.stroke();
+}
+
+// Bézier edge deformation — generates deformed edge between p0 and p1
+// amplitude: max deviation (clamped to 0.4 × edgeLength for safety)
+// seed: deterministic seed for control point placement
+// segments: number of interpolation steps (default 8)
+function deformEdgeBezier(p0, p1, amplitude, seed, segments) {
+  segments = segments || 8;
+  const rng = new PRNG(seed);
+  const dx = p1.x - p0.x, dy = p1.y - p0.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const maxAmp = len * 0.4; // safety clamp per §19.5
+  const amp = Math.min(amplitude, maxAmp);
+  // Normal direction (perpendicular to edge)
+  const nx = -dy / (len + 1e-10), ny = dx / (len + 1e-10);
+  // Two control points for cubic Bézier, placed at 1/3 and 2/3 along edge
+  const c1x = p0.x + dx / 3 + nx * amp * (rng.next() * 2 - 1);
+  const c1y = p0.y + dy / 3 + ny * amp * (rng.next() * 2 - 1);
+  const c2x = p0.x + 2 * dx / 3 + nx * amp * (rng.next() * 2 - 1);
+  const c2y = p0.y + 2 * dy / 3 + ny * amp * (rng.next() * 2 - 1);
+  // Interpolate along cubic Bézier
+  const pts = new Array(segments + 1);
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const u = 1 - t;
+    pts[i] = {
+      x: u*u*u*p0.x + 3*u*u*t*c1x + 3*u*t*t*c2x + t*t*t*p1.x,
+      y: u*u*u*p0.y + 3*u*u*t*c1y + 3*u*t*t*c2y + t*t*t*p1.y
+    };
+  }
+  return pts;
+}
+
+// Reverse a deformed edge (for constraint pairs: rotation/glide-reflection)
+function reverseEdge(edgePts) {
+  const out = new Array(edgePts.length);
+  for (let i = 0; i < edgePts.length; i++) out[i] = edgePts[edgePts.length - 1 - i];
+  return out;
+}
+
+// Film grain — shared across all methods
+// Applies subtle noise overlay to ImageData for analog texture.
+function addFilmGrain(ctx, W, H, seed, intensity) {
+  if (intensity <= 0) return;
+  const imgData = ctx.getImageData(0, 0, W, H);
+  const data = imgData.data;
+  const rng = new PRNG(seed + 77777);
+  const strength = intensity * 0.5; // scale to useful range
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (rng.next() - 0.5) * strength;
+    data[i]     = Math.min(255, Math.max(0, data[i] + noise));
+    data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+    data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+    // data[i+3] alpha unchanged — always 255
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
 // ── Method Registry ───────────────────────────────────────────
 const MethodRegistry = {
   _methods: {},

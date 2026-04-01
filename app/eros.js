@@ -588,6 +588,10 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     { key: 'architectural', label: '▾ Architectural', icon: '◼', ids: ['edifice', 'xylem'] },
     { key: 'botanical',     label: '▾ Botanical',     icon: '◼', ids: ['ailanthus'] },
     { key: 'muqarnas',      label: '▾ Muqarnas',      icon: '◼', ids: ['muqarnas'] },
+    { key: 'escher',        label: '▾ Escher',        icon: '◼', ids: [
+      'escher-periodic','escher-isohedral','escher-morph','escher-impossible',
+      'escher-penrose','escher-hyperbolic','escher-droste','escher-fractal','escher-topology'
+    ] },
     { key: 'generative',    label: '▾ Generative',    icon: '◼', ids: [] }, // Catch-all
   ];
 
@@ -624,6 +628,16 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     if (id === 'edifice') return 1;
     if (id === 'xylem') return 2;
     if (id === 'muqarnas') return 1;
+    // Escher methods ordered by complexity
+    if (id === 'escher-periodic')   return 1;
+    if (id === 'escher-isohedral')  return 2;
+    if (id === 'escher-morph')      return 3;
+    if (id === 'escher-impossible') return 4;
+    if (id === 'escher-penrose')    return 5;
+    if (id === 'escher-hyperbolic') return 6;
+    if (id === 'escher-droste')     return 7;
+    if (id === 'escher-fractal')    return 8;
+    if (id === 'escher-topology')   return 9;
     return 99;
   };
 
