@@ -133,6 +133,125 @@ class SpatialHashGrid {
   clear() { this.cells.clear(); }
 }
 
+/* ── Escher Core: Complex Math & Transformations ─────────────── */
+function cMul(ar, ai, br, bi) {
+  return [ar * br - ai * bi, ar * bi + ai * br];
+}
+
+function cDiv(ar, ai, br, bi) {
+  const den = br * br + bi * bi;
+  if (den === 0) return [0, 0];
+  return [(ar * br + ai * bi) / den, (ai * br - ar * bi) / den];
+}
+
+function cExp(r, i) {
+  const er = Math.exp(r);
+  return [er * Math.cos(i), er * Math.sin(i)];
+}
+
+function cLog(r, i) {
+  const mag = Math.sqrt(r * r + i * i);
+  if (mag === 0) return [0, 0];
+  return [Math.log(mag), Math.atan2(i, r)];
+}
+
+function cPow(zr, zi, ar, ai) {
+  const logZ = cLog(zr, zi);
+  const aLogZ = cMul(ar, ai, logZ[0], logZ[1]);
+  return cExp(aLogZ[0], aLogZ[1]);
+}
+
+function cMobius(zr, zi, a, b, c, d) {
+  // f(z) = (a*z + b) / (c*z + d)
+  const num = cMul(a[0], a[1], zr, zi);
+  num[0] += b[0]; num[1] += b[1];
+  const den = cMul(c[0], c[1], zr, zi);
+  den[0] += d[0]; den[1] += d[1];
+  return cDiv(num[0], num[1], den[0], den[1]);
+}
+
+function affineTransform(points, [a, b, c, d, tx, ty]) {
+  return points.map(([x, y]) => [
+    a * x + c * y + tx,
+    b * x + d * y + ty
+  ]);
+}
+
+/* ── Escher Core: Rendering & Geometry Utilities ─────────────── */
+function fillPolygonBatch(ctx, polygons, fillStyle) {
+  if (!polygons || polygons.length === 0) return;
+  ctx.fillStyle = fillStyle;
+  ctx.beginPath();
+  for (const poly of polygons) {
+    if (poly.length < 3) continue;
+    ctx.moveTo(poly[0][0], poly[0][1]);
+    for (let i = 1; i < poly.length; i++) {
+      ctx.lineTo(poly[i][0], poly[i][1]);
+    }
+    ctx.closePath();
+  }
+  ctx.fill();
+}
+
+function strokePolygonBatch(ctx, polygons, strokeStyle, lineWidth) {
+  if (!polygons || polygons.length === 0) return;
+  ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  for (const poly of polygons) {
+    if (poly.length < 3) continue;
+    ctx.moveTo(poly[0][0], poly[0][1]);
+    for (let i = 1; i < poly.length; i++) {
+      ctx.lineTo(poly[i][0], poly[i][1]);
+    }
+    ctx.closePath();
+  }
+  ctx.stroke();
+}
+
+function deformEdge(p0, p1, amplitude, prng, segments = 8) {
+  const dx = p1[0] - p0[0], dy = p1[1] - p0[1];
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 0.1 || amplitude === 0) return [p0, p1];
+  
+  // Normal vector
+  const nx = -dy / len;
+  const ny = dx / len;
+  
+  // Two control points for cubic Bezier
+  const cp1 = [
+    p0[0] + dx * 0.33 + nx * (prng() * 2 - 1) * amplitude,
+    p0[1] + dy * 0.33 + ny * (prng() * 2 - 1) * amplitude
+  ];
+  const cp2 = [
+    p0[0] + dx * 0.66 + nx * (prng() * 2 - 1) * amplitude,
+    p0[1] + dy * 0.66 + ny * (prng() * 2 - 1) * amplitude
+  ];
+
+  const pts = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const mt = 1 - t;
+    const x = mt * mt * mt * p0[0] + 3 * mt * mt * t * cp1[0] + 3 * mt * t * t * cp2[0] + t * t * t * p1[0];
+    const y = mt * mt * mt * p0[1] + 3 * mt * mt * t * cp1[1] + 3 * mt * t * t * cp2[1] + t * t * t * p1[1];
+    pts.push([x, y]);
+  }
+  return pts;
+}
+
+function addFilmGrain(ctx, W, H, prng, intensity) {
+  if (intensity <= 0) return;
+  const imageData = ctx.getImageData(0, 0, W, H);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (prng() - 0.5) * intensity * 2.55;
+    data[i] = Math.min(255, Math.max(0, data[i] + noise));
+    data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+    data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
 // ── Distance Metrics ──────────────────────────────────────────
 function euclideanDist(x1, y1, x2, y2) {
   const dx = x2 - x1, dy = y2 - y1;
