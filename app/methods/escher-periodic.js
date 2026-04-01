@@ -127,7 +127,7 @@ class EscherPeriodicMethod {
     };
   }
 
-  render(ctx, W, H, params, palette) {
+  render(canvas, ctx, W, H, params, palette) {
     const prng = typeof ErosEngine !== 'undefined' ? ErosEngine.seedPRNG(params.seed) : Math.random;
     const group = this.groups[params.wallpaperGroup];
     const S = params.tileScale;
