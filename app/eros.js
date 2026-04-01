@@ -497,7 +497,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Build method selector ──
-  buildMethodSelector('2d');
+  const savedMethodId = localStorage.getItem('eros-last-method');
+  const savedMethod = savedMethodId ? MethodRegistry.get(savedMethodId) : null;
+  if (savedMethod && savedMethod.type === '3d') {
+    switchToTab('canvas-3d');
+  } else {
+    buildMethodSelector('2d');
+  }
 
   // ── Static button bindings ──
   document.getElementById('btn-new-seed').addEventListener('click', () => {
@@ -530,6 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ErosEngine.hqRender = e.target.checked;
     scheduleRender();
   });
+  window.addEventListener('resize', () => { CanvasView.fit(); });
 
   // ── Harmony (in right panel) ──
   bindSlider('harmony-hue', 'val-base-hue', updateHarmony);
@@ -736,8 +743,17 @@ function buildMethodSelector(methodTypeFilter = '2d') {
     container.appendChild(cardsWrap);
   }
   
-  if (firstMethod) {
-    switchMethod(firstMethod.id);
+  let selectedId = firstMethod ? firstMethod.id : null;
+  const savedMethodId = localStorage.getItem('eros-last-method');
+  if (savedMethodId && MethodRegistry.get(savedMethodId)?.type === methodTypeFilter) {
+    selectedId = savedMethodId;
+  }
+  
+  if (selectedId) {
+    // Prevent redundant reload on mount if already active
+    if (state.methodId !== selectedId) {
+      switchMethod(selectedId);
+    }
   } else {
     state.methodId = null;
   }
@@ -749,6 +765,7 @@ function switchMethod(methodId) {
   const currentSeed = state.params.seed;
   const method = ErosEngine.loadMethod(methodId);
   state.methodId = methodId;
+  localStorage.setItem('eros-last-method', methodId);
   state.params = ErosEngine.getDefaults();
 
   if (currentSeed) state.params.seed = currentSeed;
@@ -1242,7 +1259,7 @@ function saveToGallery() {
     : document.getElementById('eros-canvas');
   
   // Create a high-res thumbnail to match new larger cards
-  const thumbSize = 800;
+  const thumbSize = 400; // Halved from 800 to prevent localstorage quota errors
   const scale = thumbSize / Math.max(canvas.width, canvas.height);
   const tCanvas = document.createElement('canvas');
   tCanvas.width = canvas.width * scale;
@@ -1261,10 +1278,20 @@ function saveToGallery() {
     palette: { name: state.palette.name, mood: state.palette.mood, colors: [...state.palette.colors] },
     timestamp: new Date().toISOString(),
   };
-  const gallery = JSON.parse(localStorage.getItem('eros-gallery') || '[]');
+  let gallery = JSON.parse(localStorage.getItem('eros-gallery') || '[]');
   gallery.unshift(entry);
   if (gallery.length > 50) gallery.pop();
-  localStorage.setItem('eros-gallery', JSON.stringify(gallery));
+  
+  // Try to save. If quota exceeded, shrink array and retry until success
+  while (gallery.length > 0) {
+    try {
+      localStorage.setItem('eros-gallery', JSON.stringify(gallery));
+      break;
+    } catch (e) {
+      console.warn('Eros: Gallery storage quota exceeded, dropping oldest entries...');
+      gallery.pop(); // Remove oldest item to free space
+    }
+  }
   loadGallery();
   
   // Visual feedback that a new card was created
