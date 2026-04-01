@@ -149,7 +149,8 @@ class EscherPeriodicMethod {
   }
 
   render(canvas, ctx, W, H, params, palette) {
-    const prng = typeof ErosEngine !== 'undefined' ? ErosEngine.seedPRNG(params.seed) : Math.random;
+    const _rng = new PRNG(params.seed);
+    const prng = () => _rng.next();
     const group = this.groups[params.wallpaperGroup];
     const S = params.tileScale;
     
@@ -231,7 +232,7 @@ class EscherPeriodicMethod {
     }
 
     if (params.filmGrain > 0 && typeof addFilmGrain !== 'undefined') {
-      addFilmGrain(ctx, W, H, prng, params.filmGrain);
+      addFilmGrain(ctx, W, H, params.seed, params.filmGrain);
     }
   }
 
