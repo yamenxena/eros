@@ -100,9 +100,9 @@ Level 0 — THE SEED (PRNG State)
 | Axis | Real Edifice Variants | kovach.js (v1.1) | edifice-v3.js (v6.0) | Remaining Gap |
 |:-----|:---------------------|:-----------------|:--------------------|:-------------|
 | **Cell Size** | Fine → Colossal | ✅ `gridCols` | ✅ `gridCols` (4–50) | None |
-| **Cell Aspect** | Square to Extra Wide/Tall | ❌ Always square | ❌ **Still square** | **Must add** |
+| **Cell Aspect** | Square to Extra Wide/Tall | ❌ Always square | ✅ `aspectRatio` (0.25–4.0) | **COMPLETE** |
 | **Fill Style** | 9 algorithms | ❌ Flat scan | ✅ All 9: Random Walk, Random Box, Ns, Bars, Spiral, Bismuth, BSP, Distance, Riley | **COMPLETE** |
-| **Symmetry** | None/H/V/Radial | ❌ None | ❌ **Still missing** | **Must add** |
+| **Symmetry** | None/H/V/Radial | ❌ None | ✅ None/Horizontal/Vertical/Radial | **COMPLETE** |
 | **Displacement** | 11+ types | ⚠️ Squish only | ✅ All 12: Twist, Sharp, Shift, Squish, Wave, Turn, Smooth, Detach, Isometrize, Perspective, V-Fold | **COMPLETE** |
 | **Style (Boundary)** | Explosive/Modern | ❌ Hard clamp | ✅ Modern (Sticky) + Explosive (Bounce) | None |
 | **Texture** | Lattice/Hatched/Sqribble | ❌ One mode | ✅ Lattice, Hatched, Sqribble | None |
@@ -112,8 +112,8 @@ Level 0 — THE SEED (PRNG State)
 | Gap | Description | kovach.js | edifice-v3.js | Status |
 |:----|:-----------|:----------|:-------------|:-------|
 | **GAP 1** | Fill styles | ❌ | ✅ 9/9 | **CLOSED** |
-| **GAP 2** | Cell aspect ratio | ❌ | ❌ | **OPEN** |
-| **GAP 3** | Symmetry modes | ❌ | ❌ | **OPEN** |
+| **GAP 2** | Cell aspect ratio | ❌ | ✅ `aspectRatio` param (0.25–4.0, gridRows derived) | **CLOSED** |
+| **GAP 3** | Symmetry modes | ❌ | ✅ None/Horizontal/Vertical/Radial (`_applySymmetry`) | **CLOSED** |
 | **GAP 4** | Boundary collision styles | ❌ | ✅ | **CLOSED** |
 | **GAP 5** | Displacements (11+) | 1/11 | 12/12 | **CLOSED** |
 | **GAP 6** | Explosion positioning | ❌ | ✅ Random/Central/Corners/Edges | **CLOSED** |
@@ -129,9 +129,14 @@ Level 0 — THE SEED (PRNG State)
 ### 3.3 Closure Summary
 
 ```
-CLOSED (v3 already implements): 13 / 14  (GAP 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, + Color Stability)
-PARTIAL (v3 started, needs more): 0 / 14
-OPEN (v3 does not address):       1 / 14  (GAP 2, 3)
+CLOSED: 14 / 14  — ALL GAPS CLOSED
+  GAP 1 (Fill 9/9), GAP 2 (Aspect Ratio), GAP 3 (Symmetry), GAP 4 (Boundary),
+  GAP 5 (Displacements 12/12), GAP 6 (Explosion Pos), GAP 7 (Textures),
+  GAP 8 (Interference), GAP 9 (Topology), GAP 10 (Palettes 16/16),
+  GAP 11 (Line Width Var), GAP 12 (Spread), GAP 13 (Cloth), GAP 14 (Physics)
+  + Color Stability (bonus)
+PARTIAL: 0 / 14
+OPEN:    0 / 14
 ```
 
 > [!TIP]
@@ -600,9 +605,9 @@ LEVEL 4-5 — HATCH & PIGMENT
 
 | ID | Gap | Source | Phase | Priority | v3 Status |
 |:---|:----|:-------|:------|:---------|:----------|
-| GAP-01 | Fill styles (9 total) | A, B | **P1+P4** | 🔴 Critical | 3/9 done |
-| GAP-02 | Cell aspect ratio | A, B | **P1** | 🔴 Critical | ❌ Open |
-| GAP-03 | Symmetry modes | A, B | **P1** | 🟡 High | ❌ Open |
+| GAP-01 | Fill styles (9 total) | A, B | **P1+P4** | 🔴 Critical | ✅ Closed (9/9) |
+| GAP-02 | Cell aspect ratio | A, B | **P1** | 🔴 Critical | ✅ Closed |
+| GAP-03 | Symmetry modes | A, B | **P1** | 🟡 High | ✅ Closed |
 | GAP-04 | Boundary styles | A, B | — | ✅ | ✅ Closed |
 | GAP-05 | Displacements (11 total) | A, B | **P2+P3** | 🔴 Critical | ✅ Closed (12/12) |
 | GAP-06 | Explosion positioning | A, B | — | ✅ | ✅ Closed |
@@ -639,8 +644,8 @@ LEVEL 4-5 — HATCH & PIGMENT
 ### Summary
 
 ```
-CLOSED:       23 / 35  (Phase 0 + v3 code + Phase 2 + Phase 3 + Phase 4)
-REMAINING:    12 / 35  (Phase 5)
+CLOSED:       25 / 35  (Phase 0 + v3 code + Phase 2 + Phase 3 + Phase 4 + GAP-2/3 fix)
+REMAINING:    10 / 35  (Phase 5)
 DEFERRED:      3       (Phase 6 — future architecture)
 ```
 
