@@ -1,17 +1,19 @@
 /* ═══════════════════════════════════════════════════════════════
-   Eros v8 — Method: Edifice (Mereological Tectonics)
+   Eros v8.1 — Method: Edifice (Mereological Tectonics)
    The sole SSoT method of the Eros generative engine.
    
-   Lineage: kovach.js (v1.1) → edifice-v2 → edifice-v3 → v7.0 → this (v8.0)
+   Lineage: kovach.js (v1.1) → edifice-v2 → edifice-v3 → v7.0 → v8.0 → this (v8.1)
    
    Features:
    ─ Position-deterministic color (immune to physics PRNG shifts)
    ─ Full cloth/spring physics simulation with controllable parameters
    ─ 9 fill styles (Random Walk, Random Box, Ns, Bars, Spiral, Bismuth, BSP, Distance, Riley)
-   ─ 12 displacement types (Twist, Sharp, Shift, Squish, Wave, Turn, Smooth, Detach, Isometrize, Perspective, V-Fold, None)
+   ─ 12 displacement types with controllable intensity (displacementAmt)
    ─ Spring Mesh + RK4 Flow + Hybrid render modes
    ─ 3 texture styles (Lattice, Hatched, Sqribble)
    ─ TDA density clamping (prevents ink black-hole collapse)
+   ─ Aspect gradient (center-tall/edge-square per-column modulation)
+   ─ Density curve (steeper small-dense/large-airy mass scaling)
    ─ Cell aspect ratio, symmetry modes, pack density control
    ─ Per-enclosure line width variation & explosion spread control
    ─ Topology boundary modes (Finite / Wrap / Mirror per axis)
@@ -22,7 +24,7 @@ MethodRegistry.register({
   id: 'edifice',
   name: 'Edifice (Mereological Tectonics)',
   category: 'Eros SSoT',
-  version: '8.0.0',
+  version: '8.1.0',
   type: '2d',
   description: 'Brutalist mereological tectonics — cloth simulation, deterministic color, controllable physics, RK4 hatching, symmetry, and topological density regulation.',
 
@@ -188,9 +190,9 @@ MethodRegistry.register({
   // Neutral defaults used when a section is disabled (bypassed)
   sectionDefaults: {
     explosions:   { expCount: 0 },
-    displacement: { displacement: 'None' },
+    displacement: { displacement: 'None', displacementAmt: 1.0 },
     cloth:        { springK: 0.50, damp: 0.85, simSteps: 25, bounceEnergy: 0.50, spread: 0, boundStyle: 'Modern (Sticky)', topoX: 'Finite', topoY: 'Finite' },
-    hatch:        { hatchMode: 'Spring Mesh', texture: 'Hatched', outlineColor: 'Black', gridOutline: 1.5, meshSubdivs: 6.0, lineWeight: 0.60, lineWidthVar: 0, lineAlpha: 0.85, hatchDensity: 1.0, massDensity: 'Off', densityClamp: 0 },
+    hatch:        { hatchMode: 'Spring Mesh', texture: 'Hatched', outlineColor: 'Black', gridOutline: 1.5, meshSubdivs: 6.0, lineWeight: 0.60, lineWidthVar: 0, lineAlpha: 0.85, hatchDensity: 1.0, massDensity: 'Off', densityClamp: 0, densityCurve: 3.0 },
     post:         { sketchWarp: 0, grainIntensity: 0 },
   },
 
@@ -205,6 +207,7 @@ MethodRegistry.register({
     { key: 'fillAlgo',     type: 'select', label: 'Fill Style',          default: 'Random Walk', options: ['Random Walk', 'Random Box', 'Ns', 'Bars', 'Spiral', 'Bismuth', 'BSP', 'Distance', 'Riley'], section: 'grid' },
     { key: 'symmetry',     type: 'select', label: 'Symmetry',            default: 'None', options: ['None', 'Horizontal', 'Vertical', 'Radial'], section: 'grid' },
     { key: 'packDensity',  type: 'range',  label: 'Pack Density',        default: 0.42,  min: 0.05,  max: 0.95,   precision: 2, section: 'grid' },
+    { key: 'aspectGradient', type: 'range', label: 'Aspect Gradient',     default: 0,     min: 0,     max: 1.0,    precision: 2, section: 'grid' },
 
     // ── ✦ Explosions ─────────────────────────────────────
     { key: 'expCount',     type: 'range',  label: 'Explosion Amount',     default: 0,     min: 0,     max: 100,    precision: 0, section: 'explosions' },
@@ -215,6 +218,7 @@ MethodRegistry.register({
 
     // ── ◐ Displacement ───────────────────────────────────
     { key: 'displacement', type: 'select', label: 'Displacement Type',    default: 'None', options: ['None', 'Twist', 'Sharp', 'Shift', 'Squish', 'Wave', 'Turn', 'Smooth', 'Detach', 'Isometrize', 'Perspective', 'V-Fold'], section: 'displacement' },
+    { key: 'displacementAmt', type: 'range', label: 'Displacement Amount', default: 1.0,   min: 0,     max: 3.0,    precision: 2, section: 'displacement' },
 
     // ── ◎ Cloth Physics ──────────────────────────────────
     { key: 'boundStyle',   type: 'select', label: 'Boundary Style',      default: 'Modern (Sticky)', options: ['Modern (Sticky)', 'Explosive (Bounce)'], section: 'cloth' },
@@ -238,6 +242,7 @@ MethodRegistry.register({
     { key: 'hatchDensity', type: 'range',  label: 'Hatch Density',        default: 1.0,   min: 0,     max: 5.0,    precision: 1, section: 'hatch' },
     { key: 'massDensity',  type: 'select', label: 'Mass-Density Scale',   default: 'Off', options: ['Off', 'On'], section: 'hatch' },
     { key: 'densityClamp', type: 'range',  label: 'Max Ink Density',      default: 0,     min: 0,     max: 100,    precision: 0, section: 'hatch' },
+    { key: 'densityCurve', type: 'range',  label: 'Density Curve',        default: 3.0,   min: 1.0,   max: 10.0,   precision: 1, section: 'hatch' },
 
     // ── ◌ Post-Process ───────────────────────────────────
     { key: 'sketchWarp',   type: 'range',  label: 'Sketch Warp (Noise)',  default: 0,     min: 0,     max: 5.0,    precision: 1, section: 'post' },
@@ -245,10 +250,11 @@ MethodRegistry.register({
   ],
 
   narrative(p) {
-    return `Brutalist mereological tectonics. A ${p.gridCols}×${p.gridCols} sovereign matrix packed via ${p.fillAlgo}. ` +
+    return `Brutalist mereological tectonics. A ${p.gridCols}×${p.gridCols} sovereign matrix packed via ${p.fillAlgo}` +
+      `${p.aspectGradient > 0 ? ' (aspect gradient ' + p.aspectGradient + ')' : ''}. ` +
       `Each enclosure holds a ${p.hatchMode} mesh (${p.texture}). ` +
       `${p.expCount} ${p.expPos} explosions (F∈[${p.forceMin},${p.forceMax}]) deform springs (K=${p.springK}, ζ=${p.damp}). ` +
-      `Boundaries: ${p.boundStyle}. Displacement: ${p.displacement}.`;
+      `Boundaries: ${p.boundStyle}. Displacement: ${p.displacement}×${p.displacementAmt}.`;
   },
 
   equation(p) {
@@ -257,7 +263,8 @@ MethodRegistry.register({
       `[L2] Force: F = m/(r²+1), m∈[${p.forceMin},${p.forceMax}], r<${p.interference}\n` +
       `[L3] Spring: ΔL = (|d|−d₀)/|d| × K=${p.springK}, damp=${p.damp}\n` +
       `[L4] Limit: ${p.boundStyle}, bounce=${p.bounceEnergy}\n` +
-      `[L5] Hatch: ${p.hatchMode}(${p.texture}) + ${p.displacement} Warp`;
+      `[L5] Hatch: ${p.hatchMode}(${p.texture}) + ${p.displacement}×${p.displacementAmt} Warp\n` +
+      `[L6] Curve: density=${p.densityCurve}, gradient=${p.aspectGradient}`;
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -300,6 +307,7 @@ MethodRegistry.register({
     let totalNodes = 0;
     const cellW = drawW / params.gridCols;
     const cellH = drawH / gridRows;
+    const aspectGrad = params.aspectGradient || 0;
 
     const palLen = Math.max(1, palette.length - 1);
     const halfG = params.gridOutline / 2;
@@ -322,6 +330,14 @@ MethodRegistry.register({
       let outY = padding + enc.gy * cellH;
       let outW = enc.gw * cellW;
       let outH = enc.gh * cellH;
+
+      // ── ASPECT GRADIENT (A1) — center columns get taller, edge columns stay square ──
+      if (aspectGrad > 0) {
+        const colCenter = (enc.gx + enc.gw * 0.5) / params.gridCols; // 0..1
+        const centerDist = 1.0 - 2.0 * Math.abs(colCenter - 0.5);   // 0=edge, 1=center
+        const heightScale = 1.0 + centerDist * aspectGrad * 2.0;
+        outH *= heightScale;
+      }
 
       const rect = {
         x: outX + halfG,
@@ -383,8 +399,9 @@ MethodRegistry.register({
         let effectiveSubdivs = params.meshSubdivs;
         if (params.massDensity === 'On') {
           const mass = enc.gw * enc.gh;
-          const densityMultiplier = 1.0 / Math.sqrt(Math.max(1, mass));
-          effectiveSubdivs = Math.max(1.0, effectiveSubdivs * densityMultiplier * 3.0);
+          const curve = params.densityCurve || 3.0;
+          const densityMultiplier = Math.max(2.0, curve / Math.sqrt(Math.max(1, mass)));
+          effectiveSubdivs = Math.max(1.0, effectiveSubdivs * densityMultiplier / 3.0);
         }
 
         const cloth = this._buildClothMesh(rect, params.texture, prng, effectiveSubdivs);
@@ -410,7 +427,8 @@ MethodRegistry.register({
         const mass = enc.gw * enc.gh;
         let lineCount = Math.floor(800 * params.hatchDensity);
         if (params.massDensity === 'On') {
-          lineCount = Math.floor((3000 / Math.sqrt(Math.max(1, mass))) * params.hatchDensity);
+          const curve = params.densityCurve || 3.0;
+          lineCount = Math.floor((curve * 1000 / Math.sqrt(Math.max(1, mass))) * params.hatchDensity);
         }
 
         this._renderRK4Hatch(ctx, rect, encPhase, localExplosions, prng, lineCount, params,
@@ -1175,7 +1193,8 @@ MethodRegistry.register({
   // ═══════════════════════════════════════════════════════════════
   // 5. THE DISPLACEMENT (Affine/Warp — now includes Squish)
   // ═══════════════════════════════════════════════════════════════
-  _displacePoint(px, py, cx, cy, type) {
+  _displacePoint(px, py, cx, cy, type, amt) {
+    if (!type || type === 'None' || amt === 0) return { x: px, y: py };
     let x = px;
     let y = py;
     let dx = x - cx;
@@ -1254,6 +1273,12 @@ MethodRegistry.register({
       x = cx + dx * (0.85 + 0.15 * normalizedX);
     }
 
+    // Apply amount scaling: lerp between original and displaced
+    const a = (amt !== undefined) ? amt : 1.0;
+    if (a !== 1.0) {
+      x = px + (x - px) * a;
+      y = py + (y - py) * a;
+    }
     return { x, y };
   },
 
@@ -1264,8 +1289,8 @@ MethodRegistry.register({
               densityGrid, densityCellSize, densityGridW, densityClamp, lineAlpha) {
     ctx.beginPath();
     for (const link of cloth.links) {
-      let p1 = this._displacePoint(link.n1.x, link.n1.y, cx, cy, displacementType);
-      let p2 = this._displacePoint(link.n2.x, link.n2.y, cx, cy, displacementType);
+      let p1 = this._displacePoint(link.n1.x, link.n1.y, cx, cy, displacementType, params.displacementAmt);
+      let p2 = this._displacePoint(link.n2.x, link.n2.y, cx, cy, displacementType, params.displacementAmt);
 
       if (params.sketchWarp > 0) {
         let force = params.sketchWarp;
@@ -1345,7 +1370,7 @@ MethodRegistry.register({
       lx = Math.max(rect.x, Math.min(rect.x + rect.w, lx));
       ly = Math.max(rect.y, Math.min(rect.y + rect.h, ly));
 
-      let wp = this._displacePoint(lx, ly, cx, cy, params.displacement);
+      let wp = this._displacePoint(lx, ly, cx, cy, params.displacement, params.displacementAmt);
       ctx.moveTo(wp.x, wp.y);
 
       // Integrate path using RK4
@@ -1366,7 +1391,7 @@ MethodRegistry.register({
           }
         }
 
-        wp = this._displacePoint(lx, ly, cx, cy, params.displacement);
+        wp = this._displacePoint(lx, ly, cx, cy, params.displacement, params.displacementAmt);
         ctx.lineTo(wp.x, wp.y);
       }
     }
