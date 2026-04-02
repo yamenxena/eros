@@ -1,8 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════
-   Eros v7 — Method: Edifice (Mereological Tectonics)
+   Eros v8 — Method: Edifice (Mereological Tectonics)
    The sole SSoT method of the Eros generative engine.
    
-   Lineage: kovach.js (v1.1) → edifice-v2 → edifice-v3 → this (v7.0)
+   Lineage: kovach.js (v1.1) → edifice-v2 → edifice-v3 → v7.0 → this (v8.0)
    
    Features:
    ─ Position-deterministic color (immune to physics PRNG shifts)
@@ -22,7 +22,7 @@ MethodRegistry.register({
   id: 'edifice',
   name: 'Edifice (Mereological Tectonics)',
   category: 'Eros SSoT',
-  version: '7.0.0',
+  version: '8.0.0',
   type: '2d',
   description: 'Brutalist mereological tectonics — cloth simulation, deterministic color, controllable physics, RK4 hatching, symmetry, and topological density regulation.',
 
@@ -397,12 +397,151 @@ MethodRegistry.register({
     ctx.globalCompositeOperation = 'source-over';
     const elapsed = performance.now() - startT;
 
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 5 — SWEET-SPOT METRICS & QUALITY GATES
+    // ═══════════════════════════════════════════════════════════════
+
+    // 5.1 — ρ (Ink Density): dark pixels / total pixels
+    const imgData = ctx.getImageData(0, 0, W, H);
+    const pxData = imgData.data;
+    let darkPixels = 0;
+    const totalPixels = W * H;
+    for (let i = 0; i < pxData.length; i += 4) {
+      const lum = pxData[i] * 0.299 + pxData[i+1] * 0.587 + pxData[i+2] * 0.114;
+      if (lum < 180) darkPixels++;
+    }
+    const rho = darkPixels / totalPixels;
+
+    // 5.2 — κ (Compressibility): 1 − (compressed / raw)
+    // Use canvas.toDataURL PNG size as compressed proxy
+    const pngDataUrl = canvas.toDataURL('image/png');
+    const pngSize = pngDataUrl.length * 0.75; // base64 → byte estimate
+    const rawSize = W * H * 4; // RGBA
+    const kappa = 1 - (pngSize / rawSize);
+
+    // 5.3 — D (Fractal Dimension): box-counting on binarized downsampled grid
+    const fractalD = this._boxCountDimension(pxData, W, H);
+
+    // 5.4 — β₁ (Topological loops): approximate Betti-1 via Euler characteristic
+    //   χ = V − E + F; β₁ ≈ 1 − χ for connected planar graphs
+    //   We estimate from the enclosure adjacency: β₁ ≈ max(0, E − V + 1)
+    const V = enclosures.length;
+    // Count edge-adjacent enclosure pairs
+    let E_adj = 0;
+    for (let i = 0; i < enclosures.length; i++) {
+      for (let j = i + 1; j < enclosures.length; j++) {
+        const a = enclosures[i], b = enclosures[j];
+        const touchX = (a.gx + a.gw === b.gx || b.gx + b.gw === a.gx) &&
+                        !(a.gy + a.gh <= b.gy || b.gy + b.gh <= a.gy);
+        const touchY = (a.gy + a.gh === b.gy || b.gy + b.gh === a.gy) &&
+                        !(a.gx + a.gw <= b.gx || b.gx + b.gw <= a.gx);
+        if (touchX || touchY) E_adj++;
+      }
+    }
+    const beta1 = Math.max(0, E_adj - V + 1);
+    const beta1Norm = V > 0 ? beta1 / V : 0;
+
+    // 5.5 — H_s (Scale Entropy): Shannon entropy of cell area distribution
+    const areas = enclosures.map(e => e.gw * e.gh);
+    const totalArea = areas.reduce((s, a) => s + a, 0) || 1;
+    const probs = areas.map(a => a / totalArea);
+    let Hs = 0;
+    for (const p of probs) {
+      if (p > 0) Hs -= p * Math.log2(p);
+    }
+    const HsMax = Math.log2(enclosures.length || 1) || 1;
+    const HsNorm = Hs / HsMax;
+
+    // 5.7 — λ_eros (Edge of Chaos)
+    const gridArea = params.gridCols * params.gridCols;
+    const lambda = gridArea > 0
+      ? (params.expCount * params.forceMax) / (params.springK * params.simSteps * gridArea)
+      : 0;
+
+    // Membership function (trapezoidal fuzzy)
+    const membership = (v, lb, lg, hg, hb) => {
+      if (v <= lb || v >= hb) return 0;
+      if (v >= lg && v <= hg) return 1;
+      if (v < lg) return (v - lb) / (lg - lb);
+      return (hb - v) / (hb - hg);
+    };
+
+    // Composite sweet-spot score (product of memberships)
+    const mD   = membership(fractalD,  1.1, 1.3, 1.5, 1.8);
+    const mB   = membership(beta1Norm, 0.01, 0.02, 0.15, 0.3);
+    const mK   = membership(kappa,     0.4, 0.65, 0.85, 0.95);
+    const mR   = membership(rho,       0.1, 0.25, 0.55, 0.75);
+    const mH   = membership(HsNorm,    0.3, 0.5, 0.85, 1.0);
+    const composite = (mD * mB * mK * mR * mH);
+
+    // Color-coded indicator
+    const indicator = (v) => v >= 0.7 ? '🟢' : v >= 0.3 ? '🟡' : '🔴';
+
     return {
       enclosures: enclosures.length,
       clothNodes: totalNodes,
-      perf: `${elapsed.toFixed(0)}ms (Tectonic Topology)`,
-      renderMode: `Hatch: ${params.hatchMode} / Texture: ${params.texture} / Bounds: ${params.boundStyle}`
+      perf: `${elapsed.toFixed(0)}ms`,
+      renderMode: `${params.hatchMode}/${params.texture}/${params.boundStyle}`,
+      metrics: `ρ=${rho.toFixed(2)}${indicator(mR)} κ=${kappa.toFixed(2)}${indicator(mK)} D=${fractalD.toFixed(2)}${indicator(mD)} β₁=${beta1Norm.toFixed(3)}${indicator(mB)} Hs=${HsNorm.toFixed(2)}${indicator(mH)} λ=${lambda.toFixed(2)} Q=${(composite*100).toFixed(0)}%`
     };
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // METRICS: Box-Counting Fractal Dimension
+  // Downsamples canvas to binary grid, counts occupied boxes at multiple scales
+  // ═══════════════════════════════════════════════════════════════
+  _boxCountDimension(pxData, W, H) {
+    // Downsample to 128×128 binary grid for performance
+    const gridSize = 128;
+    const binary = new Uint8Array(gridSize * gridSize);
+    const scaleX = W / gridSize;
+    const scaleY = H / gridSize;
+    for (let gy = 0; gy < gridSize; gy++) {
+      for (let gx = 0; gx < gridSize; gx++) {
+        const px = Math.floor(gx * scaleX);
+        const py = Math.floor(gy * scaleY);
+        const idx = (py * W + px) * 4;
+        const lum = pxData[idx] * 0.299 + pxData[idx+1] * 0.587 + pxData[idx+2] * 0.114;
+        binary[gy * gridSize + gx] = lum < 180 ? 1 : 0;
+      }
+    }
+
+    // Box counting at multiple scales
+    const sizes = [2, 4, 8, 16, 32, 64];
+    const logSizes = [];
+    const logCounts = [];
+
+    for (const boxSize of sizes) {
+      let count = 0;
+      const boxes = Math.floor(gridSize / boxSize);
+      for (let by = 0; by < boxes; by++) {
+        for (let bx = 0; bx < boxes; bx++) {
+          let occupied = false;
+          for (let dy = 0; dy < boxSize && !occupied; dy++) {
+            for (let dx = 0; dx < boxSize && !occupied; dx++) {
+              if (binary[(by * boxSize + dy) * gridSize + (bx * boxSize + dx)]) {
+                occupied = true;
+              }
+            }
+          }
+          if (occupied) count++;
+        }
+      }
+      if (count > 0) {
+        logSizes.push(Math.log(1 / boxSize));
+        logCounts.push(Math.log(count));
+      }
+    }
+
+    // Linear regression on log-log plot → slope = fractal dimension
+    if (logSizes.length < 2) return 1.0;
+    const n = logSizes.length;
+    const sumX = logSizes.reduce((s, v) => s + v, 0);
+    const sumY = logCounts.reduce((s, v) => s + v, 0);
+    const sumXY = logSizes.reduce((s, v, i) => s + v * logCounts[i], 0);
+    const sumX2 = logSizes.reduce((s, v) => s + v * v, 0);
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    return Math.max(0.5, Math.min(2.5, slope));
   },
 
   // ═══════════════════════════════════════════════════════════════

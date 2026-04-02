@@ -624,19 +624,19 @@ LEVEL 4-5 — HATCH & PIGMENT
 | SSoT-3 | Fidenza refs removed | A | — | ✅ | ✅ Closed (Phase 0) |
 | SSoT-4 | Opacity reconciled | A | — | ✅ | ✅ Closed (Phase 0) |
 | COLOR-1 | Position-deterministic color | A | — | ✅ | ✅ Closed in v3 |
-| PACK-1 | packDensity parameter | A, B | **P1** | 🟢 Medium | ❌ Open |
-| TOP-1 | Surface identification | C | **P3** | 🟡 High | ❌ Open |
-| TOP-2 | Projection atlas | C | **P3** | 🟢 Medium | ❌ Open |
+| PACK-1 | packDensity parameter | A, B | **P1** | 🟢 Medium | ✅ Closed |
+| TOP-1 | Surface identification | C | **P3** | 🟡 High | ✅ Closed (topoX/topoY) |
+| TOP-2 | Projection atlas | C | **P3** | 🟢 Medium | ✅ Closed (Isometrize/Perspective/V-Fold) |
 | TOP-3 | Anti-tangling documented | C | — | ✅ | ✅ Exists in v3 |
-| TOP-4 | Riley parametric modulation | C | **P4** | 🟢 Medium | ❌ Open |
-| TOP-5 | BSP fill style (Mondrian) | C | **P4** | 🟢 Medium | ❌ Open |
-| TOP-6 | Lacanian RP² uncanny | C | **P3** | 🟢 Low | ❌ Open |
-| SS-1 | Fractal D computation | D | **P5** | 🟢 Medium | ❌ Open |
-| SS-2 | β₁ approximation | D | **P5** | 🟢 Medium | ❌ Open |
-| SS-3 | Density metric (ρ) | D | **P5** | 🟢 Low | ❌ Open |
-| SS-4 | Compressibility (κ) | D | **P5** | 🟢 Low | ❌ Open |
-| SS-5 | Sweet-spot dashboard | D | **P5** | 🟢 Medium | ❌ Open |
-| SS-6 | λ_eros parameter | D | **P5** | 🟢 Low | ❌ Open |
+| TOP-4 | Riley parametric modulation | C | **P4** | 🟢 Medium | ✅ Closed |
+| TOP-5 | BSP fill style (Mondrian) | C | **P4** | 🟢 Medium | ✅ Closed |
+| TOP-6 | Lacanian RP² uncanny | C | **P3** | 🟢 Low | ❌ Deferred (theoretical) |
+| SS-1 | Fractal D computation | D | **P5** | 🟢 Medium | ✅ Closed |
+| SS-2 | β₁ approximation | D | **P5** | 🟢 Medium | ✅ Closed |
+| SS-3 | Density metric (ρ) | D | **P5** | 🟢 Low | ✅ Closed |
+| SS-4 | Compressibility (κ) | D | **P5** | 🟢 Low | ✅ Closed |
+| SS-5 | Sweet-spot dashboard | D | **P5** | 🟢 Medium | ✅ Closed |
+| SS-6 | λ_eros parameter | D | **P5** | 🟢 Low | ✅ Closed |
 | UI-1 | Remove 3D canvas | User | — | ✅ | ✅ Closed (Phase 0) |
 | UI-2 | Remove Concept tab | User | — | ✅ | ✅ Closed (Phase 0) |
 | UI-3 | Remove non-Kovach scripts | User | — | ✅ | ✅ Closed (Phase 0) |
@@ -644,9 +644,9 @@ LEVEL 4-5 — HATCH & PIGMENT
 ### Summary
 
 ```
-CLOSED:       25 / 35  (Phase 0 + v3 code + Phase 2 + Phase 3 + Phase 4 + GAP-2/3 fix)
-REMAINING:    10 / 35  (Phase 5)
-DEFERRED:      3       (Phase 6 — future architecture)
+CLOSED:       34 / 35  (Phases 0–5 COMPLETE)
+REMAINING:     0 / 35
+DEFERRED:      4       (Phase 6 architecture × 3 + TOP-6 theoretical)
 ```
 
 ---
