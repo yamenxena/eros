@@ -8,13 +8,14 @@
    ─ Position-deterministic color (immune to physics PRNG shifts)
    ─ Full cloth/spring physics simulation with controllable parameters
    ─ 3 fill styles (Random Walk, Random Box, Ns)
-   ─ 9 displacement types (Twist, Sharp, Shift, Squish, Wave, Turn, Smooth, Detach, None)
+   ─ 12 displacement types (Twist, Sharp, Shift, Squish, Wave, Turn, Smooth, Detach, Isometrize, Perspective, V-Fold, None)
    ─ Spring Mesh + RK4 Flow + Hybrid render modes
    ─ 3 texture styles (Lattice, Hatched, Sqribble)
    ─ TDA density clamping (prevents ink black-hole collapse)
    ─ Cell aspect ratio, symmetry modes, pack density control
    ─ Per-enclosure line width variation & explosion spread control
-   ─ Canvas grain (plotter emulation)
+   ─ Topology boundary modes (Finite / Wrap / Mirror per axis)
+   ─ 16 curated palettes, canvas grain (plotter emulation)
    ═══════════════════════════════════════════════════════════════ */
 
 MethodRegistry.register({
@@ -97,6 +98,78 @@ MethodRegistry.register({
         { h: 185, s: 50, l: 50 },
         { h: 190, s: 15, l: 90 },
       ]
+    },
+    {
+      name: 'Morandi Dust', mood: 'Muted Stillness',
+      colors: [
+        { h: 30,  s: 15, l: 55 },
+        { h: 350, s: 12, l: 62 },
+        { h: 140, s: 10, l: 58 },
+        { h: 45,  s: 12, l: 90 },
+      ]
+    },
+    {
+      name: 'Tokyo Neon', mood: 'Cyberpunk Signal',
+      colors: [
+        { h: 280, s: 70, l: 30 },
+        { h: 320, s: 80, l: 50 },
+        { h: 190, s: 90, l: 55 },
+        { h: 250, s: 10, l: 8 },
+      ]
+    },
+    {
+      name: 'Lichen', mood: 'Slow Growth',
+      colors: [
+        { h: 90,  s: 25, l: 35 },
+        { h: 100, s: 20, l: 50 },
+        { h: 75,  s: 15, l: 60 },
+        { h: 60,  s: 8,  l: 92 },
+      ]
+    },
+    {
+      name: 'Terracotta', mood: 'Fired Earth',
+      colors: [
+        { h: 15,  s: 55, l: 40 },
+        { h: 25,  s: 60, l: 55 },
+        { h: 5,   s: 45, l: 30 },
+        { h: 35,  s: 20, l: 88 },
+      ]
+    },
+    {
+      name: 'Bruise', mood: 'Contusion Gradient',
+      colors: [
+        { h: 270, s: 40, l: 25 },
+        { h: 290, s: 35, l: 40 },
+        { h: 310, s: 30, l: 55 },
+        { h: 60,  s: 15, l: 85 },
+      ]
+    },
+    {
+      name: 'Soot & Amber', mood: 'Post-Industrial',
+      colors: [
+        { h: 0,   s: 0,  l: 10 },
+        { h: 30,  s: 70, l: 45 },
+        { h: 45,  s: 80, l: 55 },
+        { h: 40,  s: 10, l: 92 },
+      ]
+    },
+    {
+      name: 'Sea Glass', mood: 'Frosted Shore',
+      colors: [
+        { h: 170, s: 30, l: 45 },
+        { h: 155, s: 25, l: 60 },
+        { h: 180, s: 20, l: 72 },
+        { h: 190, s: 10, l: 94 },
+      ]
+    },
+    {
+      name: 'Magma Core', mood: 'Subduction Zone',
+      colors: [
+        { h: 0,   s: 80, l: 30 },
+        { h: 20,  s: 90, l: 45 },
+        { h: 45,  s: 85, l: 55 },
+        { h: 0,   s: 5,  l: 8 },
+      ]
     }
   ],
 
@@ -114,12 +187,14 @@ MethodRegistry.register({
 
     // ── Level 2: The Net (Forces) ────────────────────
     { key: 'boundStyle',   type: 'select', label: 'Boundary Style',      default: 'Modern (Sticky)', options: ['Modern (Sticky)', 'Explosive (Bounce)'], category: 'Physics' },
+    { key: 'topoX',        type: 'select', label: 'Topology X',          default: 'Finite', options: ['Finite', 'Wrap', 'Mirror'], category: 'Physics' },
+    { key: 'topoY',        type: 'select', label: 'Topology Y',          default: 'Finite', options: ['Finite', 'Wrap', 'Mirror'], category: 'Physics' },
     { key: 'expCount',     type: 'range',  label: 'Explosion Amount',     default: 0,     min: 0,     max: 100,    precision: 0, category: 'Physics' },
     { key: 'expPos',       type: 'select', label: 'Explosion Source',     default: 'Random', options: ['Random', 'Corners', 'Edges', 'Central'], category: 'Physics' },
     { key: 'interference', type: 'range',  label: 'Interference Radius',  default: 450,   min: 50,    max: 1500,   precision: 0, category: 'Physics' },
     { key: 'forceMin',     type: 'range',  label: 'Min Blast Force',      default: 800,   min: 100,   max: 5000,   precision: 0, category: 'Physics' },
     { key: 'forceMax',     type: 'range',  label: 'Max Blast Force',      default: 4500,  min: 1000,  max: 15000,  precision: 0, category: 'Physics' },
-    { key: 'displacement', type: 'select', label: 'Displacement Type',    default: 'None', options: ['None', 'Twist', 'Sharp', 'Shift', 'Squish', 'Wave', 'Turn', 'Smooth', 'Detach'], category: 'Physics' },
+    { key: 'displacement', type: 'select', label: 'Displacement Type',    default: 'None', options: ['None', 'Twist', 'Sharp', 'Shift', 'Squish', 'Wave', 'Turn', 'Smooth', 'Detach', 'Isometrize', 'Perspective', 'V-Fold'], category: 'Physics' },
 
     // ── Level 3: The Cloth (Physics Sim) ─────────────
     { key: 'springK',      type: 'range',  label: 'Spring Rigidity',      default: 0.50,  min: 0.05,  max: 1.0,    precision: 2, category: 'Physics' },
@@ -651,15 +726,32 @@ MethodRegistry.register({
         node.vx *= damp;
         node.vy *= damp;
 
-        if (params.boundStyle === 'Modern (Sticky)') {
+        // ── Topology-aware boundary enforcement (GAP-9) ──
+        // X-axis topology
+        if (params.topoX === 'Wrap') {
+          if (node.x < rect.x)          node.x += rect.w;
+          if (node.x > rect.x + rect.w) node.x -= rect.w;
+        } else if (params.topoX === 'Mirror') {
+          if (node.x < rect.x)          { node.x = 2 * rect.x - node.x;          node.vx = -node.vx; }
+          if (node.x > rect.x + rect.w) { node.x = 2 * (rect.x + rect.w) - node.x; node.vx = -node.vx; }
+        } else if (params.boundStyle === 'Modern (Sticky)') {
           if (node.x < rect.x)          { node.x = rect.x;          node.vx = 0; node.vy = 0; }
           if (node.x > rect.x + rect.w) { node.x = rect.x + rect.w; node.vx = 0; node.vy = 0; }
+        } else {
+          if (node.x < rect.x)          { node.x = rect.x;          node.vx *= bounceE; }
+          if (node.x > rect.x + rect.w) { node.x = rect.x + rect.w; node.vx *= bounceE; }
+        }
+        // Y-axis topology
+        if (params.topoY === 'Wrap') {
+          if (node.y < rect.y)          node.y += rect.h;
+          if (node.y > rect.y + rect.h) node.y -= rect.h;
+        } else if (params.topoY === 'Mirror') {
+          if (node.y < rect.y)          { node.y = 2 * rect.y - node.y;          node.vy = -node.vy; }
+          if (node.y > rect.y + rect.h) { node.y = 2 * (rect.y + rect.h) - node.y; node.vy = -node.vy; }
+        } else if (params.boundStyle === 'Modern (Sticky)') {
           if (node.y < rect.y)          { node.y = rect.y;          node.vx = 0; node.vy = 0; }
           if (node.y > rect.y + rect.h) { node.y = rect.y + rect.h; node.vx = 0; node.vy = 0; }
         } else {
-          // Explosive (Bounce) with controllable restitution
-          if (node.x < rect.x)          { node.x = rect.x;          node.vx *= bounceE; }
-          if (node.x > rect.x + rect.w) { node.x = rect.x + rect.w; node.vx *= bounceE; }
           if (node.y < rect.y)          { node.y = rect.y;          node.vy *= bounceE; }
           if (node.y > rect.y + rect.h) { node.y = rect.y + rect.h; node.vy *= bounceE; }
         }
@@ -734,6 +826,30 @@ MethodRegistry.register({
         x -= shear;
         y -= cutGap;
       }
+    } else if (type === 'Isometrize') {
+      // Axonometric projection — skew to 30° isometric grid
+      // Classic architectural drawing displacement
+      const isoAngle = Math.PI / 6; // 30°
+      const cosI = Math.cos(isoAngle), sinI = Math.sin(isoAngle);
+      x = cx + dx * cosI - dy * sinI * 0.5;
+      y = cy + dx * sinI * 0.3 + dy * cosI * 0.8;
+    } else if (type === 'Perspective') {
+      // Single-point perspective — vanishing point at canvas center
+      // Objects further from center appear to recede
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const maxD = Math.max(cx, cy);
+      const scale = 1.0 - (dist / maxD) * 0.35; // 0.65–1.0 range
+      x = cx + dx * Math.max(0.5, scale);
+      y = cy + dy * Math.max(0.5, scale);
+    } else if (type === 'V-Fold') {
+      // Valley fold — vertical crease through center, pages fold inward
+      const foldDepth = 25;
+      const absDx = Math.abs(dx);
+      const normalizedX = absDx / Math.max(1, cx);
+      const yShift = foldDepth * (1.0 - normalizedX);
+      y += yShift;
+      // Slight horizontal compression toward the fold
+      x = cx + dx * (0.85 + 0.15 * normalizedX);
     }
 
     return { x, y };

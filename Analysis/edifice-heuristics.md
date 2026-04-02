@@ -103,7 +103,7 @@ Level 0 — THE SEED (PRNG State)
 | **Cell Aspect** | Square to Extra Wide/Tall | ❌ Always square | ❌ **Still square** | **Must add** |
 | **Fill Style** | 9 algorithms | ❌ Flat scan | ✅ Random Walk, Random Box, Ns | Add: Bars, Spiral, Bismuth, BSP, Distance |
 | **Symmetry** | None/H/V/Radial | ❌ None | ❌ **Still missing** | **Must add** |
-| **Displacement** | 11+ types | ⚠️ Squish only | ✅ Twist, Sharp, Shift, Squish, Wave, Turn, Smooth, Detach | Add: Isometrize, Perspective, V |
+| **Displacement** | 11+ types | ⚠️ Squish only | ✅ All 12: Twist, Sharp, Shift, Squish, Wave, Turn, Smooth, Detach, Isometrize, Perspective, V-Fold | **COMPLETE** |
 | **Style (Boundary)** | Explosive/Modern | ❌ Hard clamp | ✅ Modern (Sticky) + Explosive (Bounce) | None |
 | **Texture** | Lattice/Hatched/Sqribble | ❌ One mode | ✅ Lattice, Hatched, Sqribble | None |
 
@@ -115,12 +115,12 @@ Level 0 — THE SEED (PRNG State)
 | **GAP 2** | Cell aspect ratio | ❌ | ❌ | **OPEN** |
 | **GAP 3** | Symmetry modes | ❌ | ❌ | **OPEN** |
 | **GAP 4** | Boundary collision styles | ❌ | ✅ | **CLOSED** |
-| **GAP 5** | Displacements (11+) | 1/11 | 8/11 | **PARTIAL** — 3 remain (Isometrize, Perspective, V) |
+| **GAP 5** | Displacements (11+) | 1/11 | 12/12 | **CLOSED** |
 | **GAP 6** | Explosion positioning | ❌ | ✅ Random/Central/Corners/Edges | **CLOSED** |
 | **GAP 7** | Texture modes | ❌ | ✅ Lattice/Hatched/Sqribble | **CLOSED** |
 | **GAP 8** | Interference control | ❌ | ✅ Radius-based filtering | **CLOSED** |
-| **GAP 9** | Topology (torus wrapping) | ❌ | ❌ | **OPEN** |
-| **GAP 10** | Gradient palettes (16) | 3 palettes | 4 palettes | **PARTIAL** — need 12+ |
+| **GAP 9** | Topology (torus wrapping) | ❌ | ✅ Wrap/Mirror per axis (topoX, topoY) | **CLOSED** |
+| **GAP 10** | Gradient palettes (16) | 3 palettes | 16 palettes | **CLOSED** |
 | **GAP 11** | Line width variation | ❌ | ✅ Per-enclosure PRNG thickness | **CLOSED** |
 | **GAP 12** | Spread control | ❌ | ✅ Sinusoidal repulsor drift | **CLOSED** |
 | **GAP 13** | Cloth/spring net structure | ❌ | ✅ `_buildClothMesh()` | **CLOSED** |
@@ -129,9 +129,9 @@ Level 0 — THE SEED (PRNG State)
 ### 3.3 Closure Summary
 
 ```
-CLOSED (v3 already implements):  9 / 14  (GAP 4, 6, 7, 8, 11, 12, 13, 14, + Color Stability)
-PARTIAL (v3 started, needs more): 3 / 14  (GAP 1, 5, 10)
-OPEN (v3 does not address):       2 / 14  (GAP 2, 3, 9)
+CLOSED (v3 already implements): 12 / 14  (GAP 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, + Color Stability)
+PARTIAL (v3 started, needs more): 1 / 14  (GAP 1)
+OPEN (v3 does not address):       1 / 14  (GAP 2, 3)
 ```
 
 > [!TIP]
@@ -604,12 +604,12 @@ LEVEL 4-5 — HATCH & PIGMENT
 | GAP-02 | Cell aspect ratio | A, B | **P1** | 🔴 Critical | ❌ Open |
 | GAP-03 | Symmetry modes | A, B | **P1** | 🟡 High | ❌ Open |
 | GAP-04 | Boundary styles | A, B | — | ✅ | ✅ Closed |
-| GAP-05 | Displacements (11 total) | A, B | **P2+P3** | 🔴 Critical | 8/11 done |
+| GAP-05 | Displacements (11 total) | A, B | **P2+P3** | 🔴 Critical | ✅ Closed (12/12) |
 | GAP-06 | Explosion positioning | A, B | — | ✅ | ✅ Closed |
 | GAP-07 | Texture modes | A, B | — | ✅ | ✅ Closed |
 | GAP-08 | Interference control | A, B | — | ✅ | ✅ Closed |
-| GAP-09 | Topology (torus/Klein/RP²) | A, B, C | **P3** | 🟡 High | ❌ Open |
-| GAP-10 | Palettes (16 total) | A, B | **P3** | 🟢 Medium | 4/16 done |
+| GAP-09 | Topology (torus/Klein/RP²) | A, B, C | **P3** | 🟡 High | ✅ Closed |
+| GAP-10 | Palettes (16 total) | A, B | **P3** | 🟢 Medium | ✅ Closed (16/16) |
 | GAP-11 | Line width variation | A, B | **P2** | 🟢 Medium | ✅ Closed |
 | GAP-12 | Spread control | A, B | **P2** | 🟢 Medium | ✅ Closed |
 | GAP-13 | Cloth/spring net | A, B | — | ✅ | ✅ Closed |
@@ -639,8 +639,8 @@ LEVEL 4-5 — HATCH & PIGMENT
 ### Summary
 
 ```
-CLOSED:       19 / 35  (Phase 0 + v3 code + Phase 2)
-REMAINING:    16 / 35  (Phases 3–5)
+CLOSED:       22 / 35  (Phase 0 + v3 code + Phase 2 + Phase 3)
+REMAINING:    13 / 35  (Phases 4–5)
 DEFERRED:      3       (Phase 6 — future architecture)
 ```
 
