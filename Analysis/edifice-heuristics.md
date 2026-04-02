@@ -101,7 +101,7 @@ Level 0 — THE SEED (PRNG State)
 |:-----|:---------------------|:-----------------|:--------------------|:-------------|
 | **Cell Size** | Fine → Colossal | ✅ `gridCols` | ✅ `gridCols` (4–50) | None |
 | **Cell Aspect** | Square to Extra Wide/Tall | ❌ Always square | ❌ **Still square** | **Must add** |
-| **Fill Style** | 9 algorithms | ❌ Flat scan | ✅ Random Walk, Random Box, Ns | Add: Bars, Spiral, Bismuth, BSP, Distance |
+| **Fill Style** | 9 algorithms | ❌ Flat scan | ✅ All 9: Random Walk, Random Box, Ns, Bars, Spiral, Bismuth, BSP, Distance, Riley | **COMPLETE** |
 | **Symmetry** | None/H/V/Radial | ❌ None | ❌ **Still missing** | **Must add** |
 | **Displacement** | 11+ types | ⚠️ Squish only | ✅ All 12: Twist, Sharp, Shift, Squish, Wave, Turn, Smooth, Detach, Isometrize, Perspective, V-Fold | **COMPLETE** |
 | **Style (Boundary)** | Explosive/Modern | ❌ Hard clamp | ✅ Modern (Sticky) + Explosive (Bounce) | None |
@@ -111,7 +111,7 @@ Level 0 — THE SEED (PRNG State)
 
 | Gap | Description | kovach.js | edifice-v3.js | Status |
 |:----|:-----------|:----------|:-------------|:-------|
-| **GAP 1** | Fill styles | ❌ | ✅ 3 of 9 | **PARTIAL** — 6 styles remain |
+| **GAP 1** | Fill styles | ❌ | ✅ 9/9 | **CLOSED** |
 | **GAP 2** | Cell aspect ratio | ❌ | ❌ | **OPEN** |
 | **GAP 3** | Symmetry modes | ❌ | ❌ | **OPEN** |
 | **GAP 4** | Boundary collision styles | ❌ | ✅ | **CLOSED** |
@@ -129,8 +129,8 @@ Level 0 — THE SEED (PRNG State)
 ### 3.3 Closure Summary
 
 ```
-CLOSED (v3 already implements): 12 / 14  (GAP 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, + Color Stability)
-PARTIAL (v3 started, needs more): 1 / 14  (GAP 1)
+CLOSED (v3 already implements): 13 / 14  (GAP 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, + Color Stability)
+PARTIAL (v3 started, needs more): 0 / 14
 OPEN (v3 does not address):       1 / 14  (GAP 2, 3)
 ```
 
@@ -639,8 +639,8 @@ LEVEL 4-5 — HATCH & PIGMENT
 ### Summary
 
 ```
-CLOSED:       22 / 35  (Phase 0 + v3 code + Phase 2 + Phase 3)
-REMAINING:    13 / 35  (Phases 4–5)
+CLOSED:       23 / 35  (Phase 0 + v3 code + Phase 2 + Phase 3 + Phase 4)
+REMAINING:    12 / 35  (Phase 5)
 DEFERRED:      3       (Phase 6 — future architecture)
 ```
 

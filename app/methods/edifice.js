@@ -7,7 +7,7 @@
    Features:
    ─ Position-deterministic color (immune to physics PRNG shifts)
    ─ Full cloth/spring physics simulation with controllable parameters
-   ─ 3 fill styles (Random Walk, Random Box, Ns)
+   ─ 9 fill styles (Random Walk, Random Box, Ns, Bars, Spiral, Bismuth, BSP, Distance, Riley)
    ─ 12 displacement types (Twist, Sharp, Shift, Squish, Wave, Turn, Smooth, Detach, Isometrize, Perspective, V-Fold, None)
    ─ Spring Mesh + RK4 Flow + Hybrid render modes
    ─ 3 texture styles (Lattice, Hatched, Sqribble)
@@ -181,7 +181,7 @@ MethodRegistry.register({
     // ── Level 1: The Pack ────────────────────────────
     { key: 'gridCols',     type: 'range',  label: 'Cell Area (Cols)',     default: 22,    min: 4,     max: 50,     precision: 0, category: 'Method' },
     { key: 'aspectRatio',  type: 'range',  label: 'Cell Aspect Ratio',   default: 1.0,   min: 0.25,  max: 4.0,    precision: 2, category: 'Method' },
-    { key: 'fillAlgo',     type: 'select', label: 'Fill Style',          default: 'Random Walk', options: ['Random Walk', 'Random Box', 'Ns', 'Bars'], category: 'Method' },
+    { key: 'fillAlgo',     type: 'select', label: 'Fill Style',          default: 'Random Walk', options: ['Random Walk', 'Random Box', 'Ns', 'Bars', 'Spiral', 'Bismuth', 'BSP', 'Distance', 'Riley'], category: 'Method' },
     { key: 'symmetry',     type: 'select', label: 'Symmetry',            default: 'None', options: ['None', 'Horizontal', 'Vertical', 'Radial'], category: 'Method' },
     { key: 'packDensity',  type: 'range',  label: 'Pack Density',        default: 0.42,  min: 0.1,   max: 0.9,    precision: 2, category: 'Method' },
 
@@ -424,6 +424,179 @@ MethodRegistry.register({
           }
         }
         enclosures.push({ gx: x, gy: 0, gw: w, gh: rows });
+      }
+      return enclosures;
+    }
+
+    // Spiral fill style — Archimedean spiral traversal outward from center
+    if (fillAlgo === 'Spiral') {
+      const cx = Math.floor(cols / 2), cy = Math.floor(rows / 2);
+      let x = cx, y = cy;
+      let dx = 0, dy = -1;
+      const maxSteps = cols * rows;
+      let stepSize = 1, stepsTaken = 0, turnCount = 0;
+      for (let i = 0; i < maxSteps; i++) {
+        if (x >= 0 && x < cols && y >= 0 && y < rows && grid[y * cols + x] === 0) {
+          // Cell size grows with distance from center
+          const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+          const size = Math.max(1, Math.min(Math.floor(1 + dist * 0.15), Math.min(cols - x, rows - y)));
+          let w = size, h = size;
+          // Validate space
+          let valid = true;
+          for (let sy = 0; sy < h && valid; sy++)
+            for (let sx = 0; sx < w && valid; sx++)
+              if (y + sy >= rows || x + sx >= cols || grid[(y + sy) * cols + (x + sx)] !== 0) { w = 1; h = 1; }
+          for (let sy = 0; sy < h; sy++)
+            for (let sx = 0; sx < w; sx++)
+              grid[(y + sy) * cols + (x + sx)] = 1;
+          enclosures.push({ gx: x, gy: y, gw: w, gh: h });
+        }
+        x += dx; y += dy;
+        stepsTaken++;
+        if (stepsTaken >= stepSize) {
+          stepsTaken = 0;
+          // Turn clockwise: up→right→down→left
+          const tmp = dx; dx = -dy; dy = tmp;
+          turnCount++;
+          if (turnCount % 2 === 0) stepSize++;
+        }
+      }
+      // Fill any remaining empty cells
+      for (let fy = 0; fy < rows; fy++)
+        for (let fx = 0; fx < cols; fx++)
+          if (grid[fy * cols + fx] === 0) {
+            grid[fy * cols + fx] = 1;
+            enclosures.push({ gx: fx, gy: fy, gw: 1, gh: 1 });
+          }
+      return enclosures;
+    }
+
+    // Bismuth fill style — recursive stepped crystal growth from seed points
+    if (fillAlgo === 'Bismuth') {
+      const seeds = Math.max(2, Math.floor(3 + prng.next() * 5));
+      const queue = [];
+      for (let s = 0; s < seeds; s++) {
+        const sx = Math.floor(prng.next() * cols);
+        const sy = Math.floor(prng.next() * rows);
+        queue.push({ x: sx, y: sy, step: 0 });
+      }
+      while (queue.length > 0) {
+        const { x, y, step } = queue.shift();
+        if (x < 0 || x >= cols || y < 0 || y >= rows || grid[y * cols + x] !== 0) continue;
+        // Crystal step determines cell size (bigger early, smaller later)
+        const size = Math.max(1, Math.min(3 - Math.floor(step / 4), Math.min(cols - x, rows - y)));
+        let w = size, h = size;
+        let valid = true;
+        for (let sy2 = 0; sy2 < h && valid; sy2++)
+          for (let sx2 = 0; sx2 < w && valid; sx2++)
+            if (y + sy2 >= rows || x + sx2 >= cols || grid[(y + sy2) * cols + (x + sx2)] !== 0) { w = 1; h = 1; }
+        for (let sy2 = 0; sy2 < h; sy2++)
+          for (let sx2 = 0; sx2 < w; sx2++)
+            grid[(y + sy2) * cols + (x + sx2)] = 1;
+        enclosures.push({ gx: x, gy: y, gw: w, gh: h });
+        // Grow in 4 cardinal directions with stochastic branching
+        const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        for (const [ddx, ddy] of dirs) {
+          if (prng.next() > 0.3) {
+            queue.push({ x: x + ddx * w, y: y + ddy * h, step: step + 1 });
+          }
+        }
+      }
+      // Fill remaining
+      for (let fy = 0; fy < rows; fy++)
+        for (let fx = 0; fx < cols; fx++)
+          if (grid[fy * cols + fx] === 0) {
+            grid[fy * cols + fx] = 1;
+            enclosures.push({ gx: fx, gy: fy, gw: 1, gh: 1 });
+          }
+      return enclosures;
+    }
+
+    // BSP fill style — Mondrian-style binary space partition
+    if (fillAlgo === 'BSP') {
+      const splits = [];
+      splits.push({ x: 0, y: 0, w: cols, h: rows });
+      const minSize = 2;
+      const maxDepth = 6;
+      function bspSplit(rect, depth) {
+        if (depth >= maxDepth || rect.w <= minSize * 2 || rect.h <= minSize * 2) return;
+        // Decide split axis — prefer splitting the longer dimension
+        const splitH = rect.w > rect.h ? true : rect.h > rect.w ? false : prng.next() > 0.5;
+        if (splitH && rect.w > minSize * 2) {
+          const split = minSize + Math.floor(prng.next() * (rect.w - minSize * 2));
+          const left  = { x: rect.x, y: rect.y, w: split, h: rect.h };
+          const right = { x: rect.x + split, y: rect.y, w: rect.w - split, h: rect.h };
+          const idx = splits.indexOf(rect);
+          splits.splice(idx, 1, left, right);
+          bspSplit(left, depth + 1);
+          bspSplit(right, depth + 1);
+        } else if (!splitH && rect.h > minSize * 2) {
+          const split = minSize + Math.floor(prng.next() * (rect.h - minSize * 2));
+          const top  = { x: rect.x, y: rect.y, w: rect.w, h: split };
+          const bot = { x: rect.x, y: rect.y + split, w: rect.w, h: rect.h - split };
+          const idx = splits.indexOf(rect);
+          splits.splice(idx, 1, top, bot);
+          bspSplit(top, depth + 1);
+          bspSplit(bot, depth + 1);
+        }
+      }
+      bspSplit(splits[0], 0);
+      for (const r of splits) {
+        for (let sy = 0; sy < r.h; sy++)
+          for (let sx = 0; sx < r.w; sx++)
+            grid[(r.y + sy) * cols + (r.x + sx)] = 1;
+        enclosures.push({ gx: r.x, gy: r.y, gw: r.w, gh: r.h });
+      }
+      return enclosures;
+    }
+
+    // Distance fill style — cell size proportional to distance from center
+    if (fillAlgo === 'Distance') {
+      const cx = cols / 2, cy = rows / 2;
+      const maxDist = Math.sqrt(cx * cx + cy * cy);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (grid[y * cols + x] !== 0) continue;
+          const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+          const norm = dist / maxDist;
+          const size = Math.max(1, Math.min(Math.round(1 + norm * 5), Math.min(cols - x, rows - y)));
+          let w = size, h = size;
+          let valid = true;
+          for (let sy = 0; sy < h && valid; sy++)
+            for (let sx = 0; sx < w && valid; sx++)
+              if (y + sy >= rows || x + sx >= cols || grid[(y + sy) * cols + (x + sx)] !== 0) valid = false;
+          if (!valid) { w = 1; h = 1; }
+          for (let sy = 0; sy < h; sy++)
+            for (let sx = 0; sx < w; sx++)
+              grid[(y + sy) * cols + (x + sx)] = 1;
+          enclosures.push({ gx: x, gy: y, gw: w, gh: h });
+        }
+      }
+      return enclosures;
+    }
+
+    // Riley fill style — Bridget Riley parametric modulation
+    // Systematic variation of cell width/height across the grid
+    if (fillAlgo === 'Riley') {
+      const freqX = 0.3 + prng.next() * 0.4; // horizontal frequency
+      const freqY = 0.2 + prng.next() * 0.3; // vertical frequency
+      for (let y = 0; y < rows; ) {
+        // Row height modulated by sine wave
+        const rowH = Math.max(1, Math.round(1 + 2 * Math.abs(Math.sin(y * freqY))));
+        const h = Math.min(rowH, rows - y);
+        for (let x = 0; x < cols; ) {
+          // Column width modulated by cosine wave (phase-shifted per row)
+          const colW = Math.max(1, Math.round(1 + 3 * Math.abs(Math.cos(x * freqX + y * 0.5))));
+          const w = Math.min(colW, cols - x);
+          // Mark grid
+          for (let sy = 0; sy < h; sy++)
+            for (let sx = 0; sx < w; sx++)
+              if (y + sy < rows && x + sx < cols)
+                grid[(y + sy) * cols + (x + sx)] = 1;
+          enclosures.push({ gx: x, gy: y, gw: w, gh: h });
+          x += w;
+        }
+        y += h;
       }
       return enclosures;
     }
