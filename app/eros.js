@@ -612,6 +612,26 @@ function buildMethodSelector() {
   } else {
     state.methodId = null;
   }
+
+  // Ensure params are rendered even if the method didn't switch (e.g., re-entering Canvas tab)
+  if (state.methodId) {
+    const method = MethodRegistry.get(state.methodId);
+    if (method) {
+      const paramContainer = document.getElementById(`params-${state.methodId}`);
+      if (paramContainer && paramContainer.children.length === 0) {
+        // Card active state
+        document.querySelectorAll('.method-card').forEach(c => {
+          const isActive = (c.dataset.id === state.methodId);
+          c.classList.toggle('active', isActive);
+          const paramBox = c.querySelector('.method-card-params');
+          if (paramBox) paramBox.style.display = isActive ? 'block' : 'none';
+        });
+        buildParamSidebar(method);
+        buildPalettePanel();
+        buildAnimPanel();
+      }
+    }
+  }
 }
 
 function switchMethod(methodId) {

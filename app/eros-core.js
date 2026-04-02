@@ -429,7 +429,7 @@ const MethodRegistry = {
     if (typeof method.id !== 'string')          errors.push('missing id (string)');
     if (typeof method.name !== 'string')        errors.push('missing name (string)');
     if (method.version === undefined)           errors.push('missing version');
-    if (method.type !== '2d' && method.type !== '3d') errors.push("type must be '2d' or '3d'");
+    if (method.type !== '2d') errors.push("type must be '2d' (3D methods are no longer supported)");
     if (typeof method.description !== 'string') errors.push('missing description (string)');
     if (typeof method.render !== 'function')    errors.push('missing render (function)');
     if (typeof method.narrative !== 'function') errors.push('missing narrative(p) (function)');
