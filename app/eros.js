@@ -680,6 +680,9 @@ function switchMethod(methodId) {
 }
 
 // ── Dynamic Sidebar Builder ───────────────────────────────────
+// State for disabled sections
+if (!state.disabledSections) state.disabledSections = new Set();
+
 function buildParamSidebar(method) {
   const container = document.getElementById(`params-${method.id}`);
   if (!container) return;
@@ -690,33 +693,97 @@ function buildParamSidebar(method) {
   
   if (!method.params || method.params.length === 0) return;
 
-  // Group params by category
-  const categories = {};
+  // Get section definitions (fall back to legacy category grouping)
+  const sectionDefs = method.sections || [
+    { id: 'Method', label: '◈ Method', locked: true, defaultOpen: true },
+    { id: 'Physics', label: '◎ Physics', locked: false, defaultOpen: false },
+    { id: 'Render',  label: '⊘ Render',  locked: false, defaultOpen: false },
+  ];
+
+  // Group params by section
+  const sectionParams = {};
   method.params.forEach(p => {
-    const cat = p.category || 'Method';
-    if (!categories[cat]) categories[cat] = [];
-    categories[cat].push(p);
+    const secId = p.section || p.category || 'Method';
+    if (!sectionParams[secId]) sectionParams[secId] = [];
+    sectionParams[secId].push(p);
   });
 
-  for (const [catName, params] of Object.entries(categories)) {
+  sectionDefs.forEach(secDef => {
+    const params = sectionParams[secDef.id];
+    if (!params || params.length === 0) return;
+
     const section = document.createElement('div');
-    section.className = 'anim-section';
-    section.style.marginBottom = '8px';
+    section.className = 'param-section';
+    section.dataset.sectionId = secDef.id;
 
-    const toggle = document.createElement('div');
-    toggle.className = 'anim-toggle open';
-    toggle.innerHTML = `<span>⏵ ${catName}</span><span class="anim-chevron">›</span>`;
-    
-    const panel = document.createElement('div');
-    panel.className = 'anim-panel';
+    const isDisabled = state.disabledSections.has(secDef.id);
+    if (isDisabled) section.classList.add('section-disabled');
 
-    toggle.addEventListener('click', () => {
-      toggle.classList.toggle('open');
-      panel.classList.toggle('hidden');
+    // ── Section Header ──
+    const header = document.createElement('div');
+    header.className = 'param-section-header';
+
+    const headerLeft = document.createElement('div');
+    headerLeft.className = 'param-section-header-left';
+
+    const chevron = document.createElement('span');
+    chevron.className = 'param-section-chevron';
+    chevron.textContent = '›';
+
+    const label = document.createElement('span');
+    label.className = 'param-section-label';
+    label.textContent = secDef.label;
+
+    headerLeft.appendChild(chevron);
+    headerLeft.appendChild(label);
+    header.appendChild(headerLeft);
+
+    // Toggle button (only for unlocked sections)
+    if (!secDef.locked) {
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'section-toggle-btn' + (isDisabled ? ' off' : '');
+      toggleBtn.title = isDisabled ? 'Enable section' : 'Disable section';
+      toggleBtn.innerHTML = isDisabled
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+
+      toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const secId = secDef.id;
+        if (state.disabledSections.has(secId)) {
+          state.disabledSections.delete(secId);
+          section.classList.remove('section-disabled');
+          toggleBtn.classList.remove('off');
+          toggleBtn.title = 'Disable section';
+          toggleBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        } else {
+          state.disabledSections.add(secId);
+          section.classList.add('section-disabled');
+          toggleBtn.classList.add('off');
+          toggleBtn.title = 'Enable section';
+          toggleBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+        }
+        scheduleRender();
+      });
+
+      header.appendChild(toggleBtn);
+    }
+
+    section.appendChild(header);
+
+    // ── Section Body (param controls) ──
+    const body = document.createElement('div');
+    body.className = 'param-section-body' + (secDef.defaultOpen ? '' : ' collapsed');
+
+    if (secDef.defaultOpen) {
+      chevron.classList.add('open');
+    }
+
+    // Header click toggles collapse
+    headerLeft.addEventListener('click', () => {
+      chevron.classList.toggle('open');
+      body.classList.toggle('collapsed');
     });
-
-    section.appendChild(toggle);
-    section.appendChild(panel);
 
     params.forEach(paramDef => {
       const group = document.createElement('div');
@@ -730,7 +797,7 @@ function buildParamSidebar(method) {
           <label>${paramDef.label} <span id="val-${paramDef.key}" class="param-val">${displayValue}</span></label>
           <input type="number" id="input-${paramDef.key}" value="${value}" min="${paramDef.min}" max="${paramDef.max}">
         `;
-        panel.appendChild(group);
+        body.appendChild(group);
         const input = group.querySelector('input');
         input.addEventListener('change', () => {
           state.params[paramDef.key] = parseInt(input.value) || paramDef.default;
@@ -742,9 +809,9 @@ function buildParamSidebar(method) {
         const rawValue = paramDef.scale ? value / paramDef.scale : value;
         group.innerHTML = `
           <label>${paramDef.label} <span id="val-${paramDef.key}" class="param-val">${displayValue}</span></label>
-          <input type="range" id="input-${paramDef.key}" min="${paramDef.min}" max="${paramDef.max}" value="${rawValue}">
+          <input type="range" id="input-${paramDef.key}" min="${paramDef.min}" max="${paramDef.max}" value="${rawValue}" step="${paramDef.precision >= 1 ? Math.pow(10, -paramDef.precision) : 1}">
         `;
-        panel.appendChild(group);
+        body.appendChild(group);
         const input = group.querySelector('input');
         input.addEventListener('input', () => {
           const raw    = parseFloat(input.value);
@@ -764,7 +831,7 @@ function buildParamSidebar(method) {
           <label>${paramDef.label} <span id="val-${paramDef.key}" class="param-val">${displayValue}</span></label>
           <select id="input-${paramDef.key}">${optionsHTML}</select>
         `;
-        panel.appendChild(group);
+        body.appendChild(group);
         const input = group.querySelector('select');
         input.addEventListener('change', () => {
           state.params[paramDef.key] = isNaN(input.value) ? input.value : parseFloat(input.value);
@@ -774,8 +841,9 @@ function buildParamSidebar(method) {
       }
     });
 
+    section.appendChild(body);
     container.appendChild(section);
-  }
+  });
 }
 
 function formatParamValue(paramDef, value) {
@@ -799,6 +867,19 @@ function scheduleRender() {
   renderTimeout = setTimeout(doRender, 80);
 }
 
+// Apply section disables — return a copy of params with neutralized values
+function _applyDisabledOverrides(params) {
+  if (!state.disabledSections || state.disabledSections.size === 0) return params;
+  const activeMethod = ErosEngine.activeMethod;
+  if (!activeMethod || !activeMethod.sectionDefaults) return params;
+  const copy = { ...params };
+  for (const secId of state.disabledSections) {
+    const defaults = activeMethod.sectionDefaults[secId];
+    if (defaults) Object.assign(copy, defaults);
+  }
+  return copy;
+}
+
 window.triggerRender = doRender;
 function doRender() {
   if (renderPending) return;
@@ -808,7 +889,9 @@ function doRender() {
 
   requestAnimationFrame(() => {
     try {
-      const result = ErosEngine.render(state.params, state.palette.colors);
+      // Apply section disable overrides (creates a copy, preserves user values)
+      const renderParams = _applyDisabledOverrides(state.params);
+      const result = ErosEngine.render(renderParams, state.palette.colors);
 
       // Summary bar (always visible)
       if (summary) {

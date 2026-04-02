@@ -173,50 +173,75 @@ MethodRegistry.register({
     }
   ],
 
+  // ── Section Definitions ─────────────────────────────────
+  // Each section groups related params. `locked` sections cannot be disabled.
+  sections: [
+    { id: 'canvas',       label: '◈ Canvas',          locked: true,  defaultOpen: true  },
+    { id: 'grid',         label: '▦ Grid & Pack',      locked: true,  defaultOpen: true  },
+    { id: 'explosions',   label: '✦ Explosions',       locked: false, defaultOpen: false },
+    { id: 'displacement', label: '◐ Displacement',     locked: false, defaultOpen: false },
+    { id: 'cloth',        label: '◎ Cloth Physics',    locked: false, defaultOpen: false },
+    { id: 'hatch',        label: '⊘ Hatch & Ink',      locked: false, defaultOpen: false },
+    { id: 'post',         label: '◌ Post-Process',     locked: false, defaultOpen: false },
+  ],
+
+  // Neutral defaults used when a section is disabled (bypassed)
+  sectionDefaults: {
+    explosions:   { expCount: 0 },
+    displacement: { displacement: 'None' },
+    cloth:        { springK: 0.50, damp: 0.85, simSteps: 25, bounceEnergy: 0.50, spread: 0, boundStyle: 'Modern (Sticky)', topoX: 'Finite', topoY: 'Finite' },
+    hatch:        { hatchMode: 'Spring Mesh', texture: 'Hatched', outlineColor: 'Black', gridOutline: 1.5, meshSubdivs: 6.0, lineWeight: 0.60, lineWidthVar: 0, lineAlpha: 0.85, hatchDensity: 1.0, massDensity: 'Off', densityClamp: 0 },
+    post:         { sketchWarp: 0, grainIntensity: 0 },
+  },
+
   params: [
-    // ── Level 0: The Seed ────────────────────────────
-    { key: 'seed',         type: 'number', label: 'Hash Seed',           default: 834,   min: 1,     max: 999999, category: 'Method' },
-    { key: 'canvasMargin', type: 'range',  label: 'Canvas Margin %',     default: 6,     min: 0,     max: 20,     precision: 0, category: 'Method' },
+    // ── ◈ Canvas ─────────────────────────────────────────
+    { key: 'seed',         type: 'number', label: 'Hash Seed',           default: 834,   min: 1,     max: 999999, section: 'canvas' },
+    { key: 'canvasMargin', type: 'range',  label: 'Canvas Margin %',     default: 6,     min: 0,     max: 20,     precision: 0, section: 'canvas' },
 
-    // ── Level 1: The Pack ────────────────────────────
-    { key: 'gridCols',     type: 'range',  label: 'Cell Area (Cols)',     default: 22,    min: 4,     max: 50,     precision: 0, category: 'Method' },
-    { key: 'aspectRatio',  type: 'range',  label: 'Cell Aspect Ratio',   default: 1.0,   min: 0.25,  max: 4.0,    precision: 2, category: 'Method' },
-    { key: 'fillAlgo',     type: 'select', label: 'Fill Style',          default: 'Random Walk', options: ['Random Walk', 'Random Box', 'Ns', 'Bars', 'Spiral', 'Bismuth', 'BSP', 'Distance', 'Riley'], category: 'Method' },
-    { key: 'symmetry',     type: 'select', label: 'Symmetry',            default: 'None', options: ['None', 'Horizontal', 'Vertical', 'Radial'], category: 'Method' },
-    { key: 'packDensity',  type: 'range',  label: 'Pack Density',        default: 0.42,  min: 0.1,   max: 0.9,    precision: 2, category: 'Method' },
+    // ── ▦ Grid & Pack ────────────────────────────────────
+    { key: 'gridCols',     type: 'range',  label: 'Cell Area (Cols)',     default: 22,    min: 4,     max: 50,     precision: 0, section: 'grid' },
+    { key: 'aspectRatio',  type: 'range',  label: 'Cell Aspect Ratio',   default: 1.0,   min: 0.25,  max: 4.0,    precision: 2, section: 'grid' },
+    { key: 'fillAlgo',     type: 'select', label: 'Fill Style',          default: 'Random Walk', options: ['Random Walk', 'Random Box', 'Ns', 'Bars', 'Spiral', 'Bismuth', 'BSP', 'Distance', 'Riley'], section: 'grid' },
+    { key: 'symmetry',     type: 'select', label: 'Symmetry',            default: 'None', options: ['None', 'Horizontal', 'Vertical', 'Radial'], section: 'grid' },
+    { key: 'packDensity',  type: 'range',  label: 'Pack Density',        default: 0.42,  min: 0.05,  max: 0.95,   precision: 2, section: 'grid' },
 
-    // ── Level 2: The Net (Forces) ────────────────────
-    { key: 'boundStyle',   type: 'select', label: 'Boundary Style',      default: 'Modern (Sticky)', options: ['Modern (Sticky)', 'Explosive (Bounce)'], category: 'Physics' },
-    { key: 'topoX',        type: 'select', label: 'Topology X',          default: 'Finite', options: ['Finite', 'Wrap', 'Mirror'], category: 'Physics' },
-    { key: 'topoY',        type: 'select', label: 'Topology Y',          default: 'Finite', options: ['Finite', 'Wrap', 'Mirror'], category: 'Physics' },
-    { key: 'expCount',     type: 'range',  label: 'Explosion Amount',     default: 0,     min: 0,     max: 100,    precision: 0, category: 'Physics' },
-    { key: 'expPos',       type: 'select', label: 'Explosion Source',     default: 'Random', options: ['Random', 'Corners', 'Edges', 'Central'], category: 'Physics' },
-    { key: 'interference', type: 'range',  label: 'Interference Radius',  default: 450,   min: 50,    max: 1500,   precision: 0, category: 'Physics' },
-    { key: 'forceMin',     type: 'range',  label: 'Min Blast Force',      default: 800,   min: 100,   max: 5000,   precision: 0, category: 'Physics' },
-    { key: 'forceMax',     type: 'range',  label: 'Max Blast Force',      default: 4500,  min: 1000,  max: 15000,  precision: 0, category: 'Physics' },
-    { key: 'displacement', type: 'select', label: 'Displacement Type',    default: 'None', options: ['None', 'Twist', 'Sharp', 'Shift', 'Squish', 'Wave', 'Turn', 'Smooth', 'Detach', 'Isometrize', 'Perspective', 'V-Fold'], category: 'Physics' },
+    // ── ✦ Explosions ─────────────────────────────────────
+    { key: 'expCount',     type: 'range',  label: 'Explosion Amount',     default: 0,     min: 0,     max: 100,    precision: 0, section: 'explosions' },
+    { key: 'expPos',       type: 'select', label: 'Explosion Source',     default: 'Random', options: ['Random', 'Corners', 'Edges', 'Central'], section: 'explosions' },
+    { key: 'interference', type: 'range',  label: 'Interference Radius',  default: 450,   min: 0,     max: 1500,   precision: 0, section: 'explosions' },
+    { key: 'forceMin',     type: 'range',  label: 'Min Blast Force',      default: 800,   min: 0,     max: 5000,   precision: 0, section: 'explosions' },
+    { key: 'forceMax',     type: 'range',  label: 'Max Blast Force',      default: 4500,  min: 0,     max: 15000,  precision: 0, section: 'explosions' },
 
-    // ── Level 3: The Cloth (Physics Sim) ─────────────
-    { key: 'springK',      type: 'range',  label: 'Spring Rigidity',      default: 0.50,  min: 0.05,  max: 1.0,    precision: 2, category: 'Physics' },
-    { key: 'damp',         type: 'range',  label: 'Velocity Damping',     default: 0.85,  min: 0.40,  max: 0.99,   precision: 2, category: 'Physics' },
-    { key: 'simSteps',     type: 'range',  label: 'Sim Iterations',       default: 25,    min: 5,     max: 100,    precision: 0, category: 'Physics' },
-    { key: 'bounceEnergy', type: 'range',  label: 'Bounce Energy',        default: 0.50,  min: 0.1,   max: 1.0,    precision: 2, category: 'Physics' },
-    { key: 'spread',       type: 'range',  label: 'Explosion Spread',     default: 0,     min: 0,     max: 20,     precision: 1, category: 'Physics' },
+    // ── ◐ Displacement ───────────────────────────────────
+    { key: 'displacement', type: 'select', label: 'Displacement Type',    default: 'None', options: ['None', 'Twist', 'Sharp', 'Shift', 'Squish', 'Wave', 'Turn', 'Smooth', 'Detach', 'Isometrize', 'Perspective', 'V-Fold'], section: 'displacement' },
 
-    // ── Level 4/5: The Hatch (Render) ────────────────
-    { key: 'hatchMode',    type: 'select', label: 'Hatch Mode',           default: 'Spring Mesh', options: ['Spring Mesh', 'RK4 Flow', 'Hybrid'], category: 'Render' },
-    { key: 'texture',      type: 'select', label: 'Texture Style',        default: 'Hatched', options: ['Lattice', 'Hatched', 'Sqribble'], category: 'Render' },
-    { key: 'outlineColor', type: 'select', label: 'Grid Color',           default: 'Black', options: ['Black', 'Transparent', 'White', 'Palette Color'], category: 'Render' },
-    { key: 'gridOutline',  type: 'range',  label: 'Grid Outline Thk',     default: 1.5,   min: 0.0,   max: 15.0,   precision: 1, category: 'Render' },
-    { key: 'meshSubdivs',  type: 'range',  label: 'Mesh Subdivision',     default: 6.0,   min: 1.0,   max: 30.0,   precision: 1, category: 'Render' },
-    { key: 'lineWeight',   type: 'range',  label: 'Ink Pen Size',         default: 0.60,  min: 0.1,   max: 3.0,    precision: 2, category: 'Render' },
-    { key: 'lineWidthVar', type: 'range',  label: 'Pen Size Variation',   default: 0,     min: 0,     max: 1.0,    precision: 2, category: 'Render' },
-    { key: 'lineAlpha',    type: 'range',  label: 'Ink Alpha',            default: 0.85,  min: 0.05,  max: 1.0,    precision: 2, category: 'Render' },
-    { key: 'hatchDensity', type: 'range',  label: 'Hatch Density',        default: 1.0,   min: 0.1,   max: 5.0,    precision: 1, category: 'Render' },
-    { key: 'massDensity',  type: 'select', label: 'Mass-Density Scale',   default: 'Off', options: ['Off', 'On'], category: 'Render' },
-    { key: 'densityClamp', type: 'range',  label: 'Max Ink Density',      default: 0,     min: 0,     max: 100,    precision: 0, category: 'Render' },
-    { key: 'sketchWarp',   type: 'range',  label: 'Sketch Warp (Noise)',  default: 0.0,   min: 0.0,   max: 5.0,    precision: 1, category: 'Render' },
-    { key: 'grainIntensity', type: 'range', label: 'Canvas Grain',        default: 10,    min: 0,     max: 50,     precision: 0, category: 'Render' },
+    // ── ◎ Cloth Physics ──────────────────────────────────
+    { key: 'boundStyle',   type: 'select', label: 'Boundary Style',      default: 'Modern (Sticky)', options: ['Modern (Sticky)', 'Explosive (Bounce)'], section: 'cloth' },
+    { key: 'topoX',        type: 'select', label: 'Topology X',          default: 'Finite', options: ['Finite', 'Wrap', 'Mirror'], section: 'cloth' },
+    { key: 'topoY',        type: 'select', label: 'Topology Y',          default: 'Finite', options: ['Finite', 'Wrap', 'Mirror'], section: 'cloth' },
+    { key: 'springK',      type: 'range',  label: 'Spring Rigidity',      default: 0.50,  min: 0,     max: 1.0,    precision: 2, section: 'cloth' },
+    { key: 'damp',         type: 'range',  label: 'Velocity Damping',     default: 0.85,  min: 0,     max: 0.99,   precision: 2, section: 'cloth' },
+    { key: 'simSteps',     type: 'range',  label: 'Sim Iterations',       default: 25,    min: 1,     max: 100,    precision: 0, section: 'cloth' },
+    { key: 'bounceEnergy', type: 'range',  label: 'Bounce Energy',        default: 0.50,  min: 0,     max: 1.0,    precision: 2, section: 'cloth' },
+    { key: 'spread',       type: 'range',  label: 'Explosion Spread',     default: 0,     min: 0,     max: 20,     precision: 1, section: 'cloth' },
+
+    // ── ⊘ Hatch & Ink ────────────────────────────────────
+    { key: 'hatchMode',    type: 'select', label: 'Hatch Mode',           default: 'Spring Mesh', options: ['Spring Mesh', 'RK4 Flow', 'Hybrid'], section: 'hatch' },
+    { key: 'texture',      type: 'select', label: 'Texture Style',        default: 'Hatched', options: ['Lattice', 'Hatched', 'Sqribble'], section: 'hatch' },
+    { key: 'outlineColor', type: 'select', label: 'Grid Color',           default: 'Black', options: ['Black', 'Transparent', 'White', 'Palette Color'], section: 'hatch' },
+    { key: 'gridOutline',  type: 'range',  label: 'Grid Outline Thk',     default: 1.5,   min: 0,     max: 15.0,   precision: 1, section: 'hatch' },
+    { key: 'meshSubdivs',  type: 'range',  label: 'Mesh Subdivision',     default: 6.0,   min: 1,     max: 30.0,   precision: 1, section: 'hatch' },
+    { key: 'lineWeight',   type: 'range',  label: 'Ink Pen Size',         default: 0.60,  min: 0,     max: 3.0,    precision: 2, section: 'hatch' },
+    { key: 'lineWidthVar', type: 'range',  label: 'Pen Size Variation',   default: 0,     min: 0,     max: 1.0,    precision: 2, section: 'hatch' },
+    { key: 'lineAlpha',    type: 'range',  label: 'Ink Alpha',            default: 0.85,  min: 0,     max: 1.0,    precision: 2, section: 'hatch' },
+    { key: 'hatchDensity', type: 'range',  label: 'Hatch Density',        default: 1.0,   min: 0,     max: 5.0,    precision: 1, section: 'hatch' },
+    { key: 'massDensity',  type: 'select', label: 'Mass-Density Scale',   default: 'Off', options: ['Off', 'On'], section: 'hatch' },
+    { key: 'densityClamp', type: 'range',  label: 'Max Ink Density',      default: 0,     min: 0,     max: 100,    precision: 0, section: 'hatch' },
+
+    // ── ◌ Post-Process ───────────────────────────────────
+    { key: 'sketchWarp',   type: 'range',  label: 'Sketch Warp (Noise)',  default: 0,     min: 0,     max: 5.0,    precision: 1, section: 'post' },
+    { key: 'grainIntensity', type: 'range', label: 'Canvas Grain',        default: 10,    min: 0,     max: 50,     precision: 0, section: 'post' },
   ],
 
   narrative(p) {
