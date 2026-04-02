@@ -474,15 +474,80 @@ MethodRegistry.register({
     const mH   = membership(HsNorm,    0.3, 0.5, 0.85, 1.0);
     const composite = (mD * mB * mK * mR * mH);
 
-    // Color-coded indicator
-    const indicator = (v) => v >= 0.7 ? '🟢' : v >= 0.3 ? '🟡' : '🔴';
+    // Grade: green ≥0.7, yellow ≥0.3, red <0.3
+    const grade = (v) => v >= 0.7 ? 'green' : v >= 0.3 ? 'yellow' : 'red';
+
+    // Build structured metrics
+    const metricsData = [
+      { key: 'rho',   sym: 'ρ',  label: 'Ink Density',       value: rho,       score: mR, grade: grade(mR), range: '0.25 – 0.55' },
+      { key: 'kappa', sym: 'κ',  label: 'Compressibility',   value: kappa,     score: mK, grade: grade(mK), range: '0.65 – 0.85' },
+      { key: 'D',     sym: 'D',  label: 'Fractal Dimension', value: fractalD,  score: mD, grade: grade(mD), range: '1.30 – 1.50' },
+      { key: 'beta1', sym: 'β₁', label: 'Topology (Loops)',  value: beta1Norm, score: mB, grade: grade(mB), range: '0.02 – 0.15' },
+      { key: 'Hs',    sym: 'Hₛ', label: 'Scale Entropy',     value: HsNorm,    score: mH, grade: grade(mH), range: '0.50 – 0.85' },
+      { key: 'lambda',sym: 'λ',  label: 'Edge of Chaos',     value: lambda,    score: membership(lambda, 0, 0.3, 2.0, 5.0), grade: grade(membership(lambda, 0, 0.3, 2.0, 5.0)), range: '0.30 – 2.00' },
+    ];
+
+    // Generate actionable recommendations based on which metrics are outside sweet-spot
+    const recommendations = [];
+
+    if (mR < 0.7) {
+      if (rho < 0.25) {
+        recommendations.push({ icon: '🔧', text: 'Too sparse — increase Explosion Amount, reduce Grid Cols, or try denser Fill Style (Riley, Spiral)' });
+      } else if (rho > 0.55) {
+        recommendations.push({ icon: '🔧', text: 'Too dense — increase Grid Cols, reduce Hatch Density, or raise Canvas Margin' });
+      }
+    }
+
+    if (mK < 0.7) {
+      if (kappa < 0.65) {
+        recommendations.push({ icon: '🔧', text: 'Low complexity — add more Explosions, try Twist/Wave displacement, or use Explosive boundary style' });
+      } else if (kappa > 0.85) {
+        recommendations.push({ icon: '🔧', text: 'Over-compressed — reduce Sketch Warp, lower Canvas Grain, or simplify Fill Style' });
+      }
+    }
+
+    if (mD < 0.7) {
+      if (fractalD < 1.3) {
+        recommendations.push({ icon: '🔧', text: 'Fractal D too low — increase explosions or displacement strength. Try BSP or Bismuth fill for complexity' });
+      } else if (fractalD > 1.5) {
+        recommendations.push({ icon: '🔧', text: 'Fractal D too high — increase Spring Rigidity, reduce explosions, or use simpler Fill Style' });
+      }
+    }
+
+    if (mB < 0.7) {
+      if (beta1Norm < 0.02) {
+        recommendations.push({ icon: '🔧', text: 'Too few loops — reduce Grid Cols for more adjacency, or use Random Walk/Spiral fill' });
+      } else if (beta1Norm > 0.15) {
+        recommendations.push({ icon: '🔧', text: 'Too many loops — increase Grid Cols or use Bars/BSP for cleaner topology' });
+      }
+    }
+
+    if (mH < 0.7) {
+      if (HsNorm < 0.5) {
+        recommendations.push({ icon: '🔧', text: 'Scale uniformity — use Distance or BSP fill for more size variety, or lower Pack Density' });
+      } else if (HsNorm > 0.85) {
+        recommendations.push({ icon: '🔧', text: 'Scale chaos — increase Pack Density or use Bars fill for more uniform sizes' });
+      }
+    }
+
+    if (lambda < 0.3 && params.expCount > 0) {
+      recommendations.push({ icon: '⚡', text: `λ=${lambda.toFixed(2)} (springs dominate) — increase Max Blast Force or Explosion Amount for more deformation` });
+    } else if (lambda > 2.0) {
+      recommendations.push({ icon: '⚡', text: `λ=${lambda.toFixed(2)} (chaos) — increase Spring Rigidity/Sim Iterations or reduce Explosion Amount` });
+    }
+
+    if (recommendations.length === 0) {
+      recommendations.push({ icon: '✨', text: 'All metrics in sweet spot — composition is well-balanced' });
+    }
 
     return {
       enclosures: enclosures.length,
       clothNodes: totalNodes,
       perf: `${elapsed.toFixed(0)}ms`,
       renderMode: `${params.hatchMode}/${params.texture}/${params.boundStyle}`,
-      metrics: `ρ=${rho.toFixed(2)}${indicator(mR)} κ=${kappa.toFixed(2)}${indicator(mK)} D=${fractalD.toFixed(2)}${indicator(mD)} β₁=${beta1Norm.toFixed(3)}${indicator(mB)} Hs=${HsNorm.toFixed(2)}${indicator(mH)} λ=${lambda.toFixed(2)} Q=${(composite*100).toFixed(0)}%`
+      metricsData,
+      composite: composite * 100,
+      recommendations
     };
   },
 

@@ -570,6 +570,11 @@ document.addEventListener('DOMContentLoaded', () => {
   bindSlider('anim-duration', 'val-anim-dur', () => {});
 
   updateHarmony();
+
+  // Metrics panel toggle
+  document.getElementById('metrics-header')?.addEventListener('click', () => {
+    document.getElementById('metrics-panel').classList.toggle('collapsed');
+  });
 });
 
 // ── Method Selector ───────────────────────────────────────────
@@ -798,23 +803,65 @@ window.triggerRender = doRender;
 function doRender() {
   if (renderPending) return;
   renderPending = true;
-  const info = document.getElementById('render-info');
-  info.textContent = 'composing…';
+  const summary = document.getElementById('metrics-summary');
+  if (summary) summary.textContent = 'composing…';
 
   requestAnimationFrame(() => {
     try {
       const result = ErosEngine.render(state.params, state.palette.colors);
-      const stats = Object.entries(result).filter(([k]) => k !== 'elapsed')
-        .map(([k, v]) => `${v} ${k.replace('Count', '')}`).join(' · ');
-      info.textContent = `${stats} · ${result.elapsed.toFixed(0)} ms`;
+
+      // Summary bar (always visible)
+      if (summary) {
+        summary.textContent = `${result.enclosures} enclosures · ${result.clothNodes} nodes · ${result.perf} · ${result.renderMode}`;
+      }
+
+      // Composite score badge
+      const scoreEl = document.getElementById('metrics-score');
+      if (scoreEl && result.composite !== undefined) {
+        const q = result.composite;
+        scoreEl.textContent = `Q ${q.toFixed(0)}%`;
+        scoreEl.className = 'metrics-score ' + (q >= 50 ? 'score-green' : q >= 20 ? 'score-yellow' : 'score-red');
+      }
+
+      // Metrics grid (inside expandable body)
+      const grid = document.getElementById('metrics-grid');
+      if (grid && result.metricsData) {
+        grid.innerHTML = result.metricsData.map(m => {
+          const pct = Math.min(100, Math.max(0, m.score * 100));
+          return `
+            <div class="metric-card metric-${m.grade}">
+              <div class="metric-label">${m.sym} ${m.label}</div>
+              <div class="metric-value">${m.value.toFixed(m.key === 'beta1' ? 3 : 2)}</div>
+              <div class="metric-range">sweet: ${m.range}</div>
+              <div class="metric-bar">
+                <div class="metric-bar-fill fill-${m.grade}" style="width:${pct}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Recommendations
+      const recEl = document.getElementById('metrics-recommendations');
+      if (recEl && result.recommendations) {
+        recEl.innerHTML = `
+          <div class="rec-title">Recommendations</div>
+          ${result.recommendations.map(r =>
+            `<div class="rec-item"><span class="rec-icon">${r.icon}</span><span>${r.text}</span></div>`
+          ).join('')}
+        `;
+      }
+
     } catch (err) {
       console.error('ErosEngine render error:', err);
-      info.textContent = 'Render Error — check console';
+      const summary = document.getElementById('metrics-summary');
+      if (summary) summary.textContent = 'Render Error — check console';
     } finally {
       renderPending = false;
     }
   });
 }
+
 
 // ── Canvas Size Controls ──────────────────────────────────────
 function _syncCanvasSizeUI() {

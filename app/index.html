@@ -117,7 +117,19 @@
     <div id="canvas-viewport">
       <canvas id="eros-canvas"></canvas>
     </div>
-    <div id="render-info">composing…</div>
+
+    <!-- METRICS PANEL — collapsible, below canvas -->
+    <div id="metrics-panel" class="metrics-panel collapsed">
+      <div id="metrics-header" class="metrics-header">
+        <span id="metrics-summary" class="metrics-summary">composing…</span>
+        <span id="metrics-score" class="metrics-score"></span>
+        <button id="metrics-toggle" class="metrics-toggle-btn" title="Toggle Metrics">▾</button>
+      </div>
+      <div id="metrics-body" class="metrics-body">
+        <div id="metrics-grid" class="metrics-grid"></div>
+        <div id="metrics-recommendations" class="metrics-recommendations"></div>
+      </div>
+    </div>
 
     <!-- Top-left: Canvas Size Controls -->
     <div id="canvas-size-bar">
