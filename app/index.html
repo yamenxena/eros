@@ -21,9 +21,7 @@
     </div>
   </div>
   <nav id="main-nav">
-    <button class="tab-btn" data-tab="canvas-2d">2D Canvas</button>
-    <button class="tab-btn" data-tab="canvas-3d">3D Canvas</button>
-    <button class="tab-btn" data-tab="concept">Concept</button>
+    <button class="tab-btn" data-tab="canvas-2d">Canvas</button>
     <button class="tab-btn active" data-tab="gallery">Gallery</button>
   </nav>
 </header>
@@ -35,9 +33,6 @@
   </button>
   <button class="mobile-nav-btn" data-tab="canvas-2d" title="Canvas">
     <span class="mobile-nav-icon">🖼️</span><span class="mobile-nav-label">Canvas</span>
-  </button>
-  <button class="mobile-nav-btn" data-tab="concept" title="Concept">
-    <span class="mobile-nav-icon">📋</span><span class="mobile-nav-label">Concept</span>
   </button>
   <button class="mobile-nav-btn" data-action="sidebar" title="Parameters">
     <span class="mobile-nav-icon">⚙</span><span class="mobile-nav-label">Params</span>
@@ -121,9 +116,6 @@
   <main id="canvas-area">
     <div id="canvas-viewport">
       <canvas id="eros-canvas"></canvas>
-      <canvas id="eros-canvas-3d" style="display:none; position:absolute; top:0; left:0; outline:none;"></canvas>
-      <!-- Mobile 2D/3D toggle (hidden on desktop) -->
-      <button id="mobile-3d-toggle" class="mobile-3d-toggle" title="Switch 2D/3D">2D</button>
     </div>
     <div id="render-info">composing…</div>
 
@@ -135,10 +127,6 @@
       <label>H</label>
       <input type="number" id="canvas-height" value="1024" min="256" max="4096" step="64">
       <button id="btn-canvas-apply" class="btn-icon" title="Apply Size">✓</button>
-      <span style="color:var(--border); margin:0 8px;">|</span>
-      <label style="display:flex; align-items:center; gap:4px; font-size:12px; font-weight:600; cursor:pointer;" title="Enable High-Fidelity Rendering (SSAO + Shadows)">
-        <input type="checkbox" id="hq-render-toggle"> HQ
-      </label>
     </div>
 
     <!-- Bottom-right: Zoom/Pan + existing buttons -->
@@ -222,29 +210,7 @@
   </aside>
 </div>
 
-<!-- ═══════════════════════════════════════════════════ -->
-<!-- ── CONCEPT TAB ─────────────────────────────────── -->
-<!-- ═══════════════════════════════════════════════════ -->
-<div id="tab-concept" class="tab-content">
-  <div class="concept-content">
-    <section class="concept-section">
-      <h3>Narrative</h3>
-      <p id="concept-narrative" class="concept-text"></p>
-    </section>
-    <section class="concept-section">
-      <h3>Field Equation</h3>
-      <pre id="concept-equation" class="concept-code"></pre>
-    </section>
-    <section class="concept-section">
-      <h3>Parameters</h3>
-      <pre id="concept-params" class="concept-code"></pre>
-    </section>
-    <section class="concept-section">
-      <h3>Metadata</h3>
-      <div id="concept-meta" class="concept-meta-grid"></div>
-    </section>
-  </div>
-</div>
+
 
 <!-- ═══════════════════════════════════════════════════ -->
 <!-- ── GALLERY TAB ─────────────────────────────────── -->
@@ -262,38 +228,9 @@
   </div>
 </div>
 
-<!-- External Dependencies -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/SSAOPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/math/SimplexNoise.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/SSAOShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
-
-<!-- Scripts: core first, then methods, then UI -->
+<!-- Scripts: core → method → UI -->
 <script src="eros-core.js"></script>
-<script src="methods/edifice-v3.js"></script>
-<script src="methods/edifice-v2.js"></script>
-<script src="methods/muqarnas.js"></script>
-<script src="methods/miniature.js"></script>
-<script src="methods/centaur.js"></script>
-<script src="methods/flow.js"></script>
-<script src="methods/edifice.js"></script>
-<script src="methods/inversion.js"></script>
-<script src="methods/manifold.js"></script>
-<script src="methods/lattice.js"></script>
-<script src="methods/sculpture.js"></script>
-<script src="methods/ailanthus.js"></script>
-<script src="methods/xylem.js"></script>
 <script src="methods/kovach.js"></script>
-
-<!-- Escher Methods (Phase 0+) -->
-<script src="methods/escher-periodic.js"></script>
 
 <script src="eros.js"></script>
 </body>

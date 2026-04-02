@@ -130,7 +130,6 @@ const AnimController = {
       this.running = false; this.mediaRecorder = null;
       _animUpdateUI(false);
       ErosEngine.render(state.params, state.palette.colors);
-      updateConcept();
       return;
     }
 
@@ -196,7 +195,6 @@ const AnimController = {
     this.running = false; this.mediaRecorder = null;
     _animUpdateUI(false);
     ErosEngine.render(state.params, state.palette.colors);
-    updateConcept();
   },
 };
 
@@ -339,10 +337,8 @@ const CanvasView = {
 
   _apply() {
     const canvas = document.getElementById('eros-canvas');
-    const canvas3D = document.getElementById('eros-canvas-3d');
     const transformStr = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
     if (canvas) canvas.style.transform = transformStr;
-    if (canvas3D) canvas3D.style.transform = transformStr;
     this._showIndicator();
   },
 
@@ -366,11 +362,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Init canvas
   const canvas = document.getElementById('eros-canvas');
-  const canvas3D = document.getElementById('eros-canvas-3d');
-  ErosEngine.init(canvas, canvas3D);
+  ErosEngine.init(canvas);
 
   // ── Tab management (desktop) ──
-  let activeTabType = '2d';
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       switchToTab(btn.dataset.tab);
@@ -388,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ═══════════════════════════════════════════════════════════════
   // ── MOBILE NAVIGATION CONTROLLER ──
-  // Bottom nav bar, bottom-sheet drawers, backdrop, 2D/3D toggle
+  // Bottom nav bar, bottom-sheet drawers, backdrop
   // ═══════════════════════════════════════════════════════════════
   const mobileBackdrop = document.getElementById('mobile-backdrop');
   const mobileNav = document.getElementById('mobile-nav');
@@ -408,45 +402,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Shared tab-switching logic for both desktop and mobile
   function switchToTab(targetId) {
-    // Clear desktop nav active states
+    // Clear all active states
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-    // Clear mobile nav active states (only for tab buttons, not action buttons)
     document.querySelectorAll('.mobile-nav-btn[data-tab]').forEach(b => b.classList.remove('active'));
-
-    // Close any open mobile sheets
     closeMobileSheets();
 
-    if (targetId === 'canvas-2d' || targetId === 'canvas-3d') {
+    if (targetId === 'canvas-2d') {
       document.getElementById('tab-canvas').classList.add('active');
-      const newType = targetId === 'canvas-3d' ? '3d' : '2d';
-      if (newType !== activeTabType) {
-        activeTabType = newType;
-        buildMethodSelector(activeTabType);
-      }
-      // Activate desktop tab btn
-      const deskBtn = document.querySelector(`#main-nav [data-tab="${targetId}"]`);
-      if (deskBtn) deskBtn.classList.add('active');
-      // Activate mobile btn (always 'canvas-2d' since 3D is a floating toggle)
-      const mobBtn = document.querySelector(`#mobile-nav [data-tab="canvas-2d"]`);
-      if (mobBtn) mobBtn.classList.add('active');
-      // Update 2D/3D toggle text
-      const toggle3d = document.getElementById('mobile-3d-toggle');
-      if (toggle3d) {
-        toggle3d.textContent = activeTabType === '3d' ? '3D' : '2D';
-        toggle3d.classList.toggle('active-3d', activeTabType === '3d');
-      }
+      buildMethodSelector();
     } else {
       const tabEl = document.getElementById('tab-' + targetId);
       if (tabEl) tabEl.classList.add('active');
-      // Desktop
-      const deskBtn = document.querySelector(`#main-nav [data-tab="${targetId}"]`);
-      if (deskBtn) deskBtn.classList.add('active');
-      // Mobile
-      const mobBtn = document.querySelector(`#mobile-nav [data-tab="${targetId}"]`);
-      if (mobBtn) mobBtn.classList.add('active');
     }
+
+    // Activate desktop + mobile buttons
+    const deskBtn = document.querySelector(`#main-nav [data-tab="${targetId}"]`);
+    if (deskBtn) deskBtn.classList.add('active');
+    const mobBtn = document.querySelector(`#mobile-nav [data-tab="${targetId}"]`);
+    if (mobBtn) mobBtn.classList.add('active');
   }
 
   // Mobile bottom nav: tab buttons
@@ -484,28 +458,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (mobileBackdrop) {
     mobileBackdrop.addEventListener('click', () => {
       closeMobileSheets();
-      // Remove active state from action buttons, restore tab active
       document.querySelectorAll('.mobile-nav-btn[data-action]').forEach(b => b.classList.remove('active'));
     });
   }
 
-  // 2D/3D floating toggle (mobile only)
-  const mobile3DToggle = document.getElementById('mobile-3d-toggle');
-  if (mobile3DToggle) {
-    mobile3DToggle.addEventListener('click', () => {
-      const newType = activeTabType === '2d' ? 'canvas-3d' : 'canvas-2d';
-      switchToTab(newType);
-    });
-  }
-
   // ── Build method selector ──
-  const savedMethodId = localStorage.getItem('eros-last-method');
-  const savedMethod = savedMethodId ? MethodRegistry.get(savedMethodId) : null;
-  if (savedMethod && savedMethod.type === '3d') {
-    switchToTab('canvas-3d');
-  } else {
-    buildMethodSelector('2d');
-  }
+  buildMethodSelector();
 
   // ── Static button bindings ──
   document.getElementById('btn-new-seed').addEventListener('click', () => {
@@ -534,10 +492,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Canvas Size ──
   document.getElementById('btn-canvas-apply')?.addEventListener('click', applyCanvasSize);
-  document.getElementById('hq-render-toggle')?.addEventListener('change', (e) => {
-    ErosEngine.hqRender = e.target.checked;
-    scheduleRender();
-  });
   window.addEventListener('resize', () => { CanvasView.fit(); });
 
   // ── Harmony (in right panel) ──
@@ -618,177 +572,40 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHarmony();
 });
 
-// ── Method Selector (Collapsible Category-Grouped) ────────────
-function buildMethodSelector(methodTypeFilter = '2d') {
+// ── Method Selector ───────────────────────────────────────────
+function buildMethodSelector() {
   const container = document.getElementById('method-cards');
   container.innerHTML = '';
   
-  const methods = MethodRegistry.list().filter(m => {
-    const is3D = m.type === '3d';
-    return methodTypeFilter === '3d' ? is3D : !is3D;
-  });
-
-  // Category definitions with display order and icons
-  const categoryConfig = [
-    { key: 'architectural', label: '▾ Architectural', icon: '◼', ids: ['edifice', 'xylem'] },
-    { key: 'botanical',     label: '▾ Botanical',     icon: '◼', ids: ['ailanthus'] },
-    { key: 'muqarnas',      label: '▾ Muqarnas',      icon: '◼', ids: ['muqarnas'] },
-    { key: 'escher',        label: '▾ Escher',        icon: '◼', ids: [
-      'escher-periodic','escher-isohedral','escher-morph','escher-impossible',
-      'escher-penrose','escher-hyperbolic','escher-droste','escher-fractal','escher-topology'
-    ] },
-    { key: 'generative',    label: '▾ Generative',    icon: '◼', ids: [] }, // Catch-all
-  ];
-
-  // Assign methods to categories
-  const categorized = new Map();
-  for (const cat of categoryConfig) categorized.set(cat.key, []);
-
-  for (const method of methods) {
-    const explicitCat = method.category;
-    let placed = false;
-
-    if (explicitCat && categorized.has(explicitCat)) {
-      categorized.get(explicitCat).push(method);
-      placed = true;
-    }
-    
-    if (!placed) {
-      for (const cat of categoryConfig) {
-        if (cat.ids.includes(method.id)) {
-          categorized.get(cat.key).push(method);
-          placed = true;
-          break;
-        }
-      }
-    }
-
-    if (!placed) {
-      categorized.get('generative').push(method);
-    }
-  }
-
-  // Sort within each category
-  const getPriority = (id) => {
-    if (id === 'edifice') return 1;
-    if (id === 'xylem') return 2;
-    if (id === 'muqarnas') return 1;
-    // Escher methods ordered by complexity
-    if (id === 'escher-periodic')   return 1;
-    if (id === 'escher-isohedral')  return 2;
-    if (id === 'escher-morph')      return 3;
-    if (id === 'escher-impossible') return 4;
-    if (id === 'escher-penrose')    return 5;
-    if (id === 'escher-hyperbolic') return 6;
-    if (id === 'escher-droste')     return 7;
-    if (id === 'escher-fractal')    return 8;
-    if (id === 'escher-topology')   return 9;
-    return 99;
-  };
-
-  for (const [, list] of categorized) {
-    list.sort((a, b) => {
-      const pA = getPriority(a.id), pB = getPriority(b.id);
-      if (pA !== pB) return pA - pB;
-      return a.name.localeCompare(b.name);
-    });
-  }
-
-  // Load collapsed state from sessionStorage (default: true -> collapsed)
-  const getCollapsed = (key) => {
-    try { return sessionStorage.getItem(`eros-cat-${key}`) !== '0'; } catch(e) { return true; }
-  };
-  const setCollapsed = (key, val) => {
-    try { sessionStorage.setItem(`eros-cat-${key}`, val ? '1' : '0'); } catch(e) {}
-  };
+  const methods = MethodRegistry.list();
 
   let firstMethod = null;
 
-  // Render collapsible categories
-  for (const cat of categoryConfig) {
-    const list = categorized.get(cat.key);
-    if (list.length === 0) continue;
-
-    let collapsed = getCollapsed(cat.key);
-
-    // Category header (clickable to toggle)
-    const header = document.createElement('div');
-    header.className = 'method-category-header';
-    header.setAttribute('data-cat', cat.key);
-    const updateHeaderText = (isCollapsed) => {
-      const arrow = isCollapsed ? '▸' : '▾';
-      header.textContent = `${arrow} ${cat.key.charAt(0).toUpperCase() + cat.key.slice(1)}`;
-      const badge = document.createElement('span');
-      badge.textContent = ` (${list.length})`;
-      badge.style.cssText = 'opacity:0.5; font-size:9px;';
-      header.appendChild(badge);
-    };
-    updateHeaderText(collapsed);
-
-    header.style.cssText = `
-      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-      color: var(--accent, #ff6b35); padding: 10px 10px 4px;
-      font-weight: 700; cursor: pointer; user-select: none; opacity: 0.85;
-      transition: opacity 0.15s;
-    `.replace(/\n/g, '');
-    header.addEventListener('mouseenter', () => header.style.opacity = '1');
-    header.addEventListener('mouseleave', () => header.style.opacity = '0.85');
-
-    container.appendChild(header);
-
-    // Cards container (collapsible)
-    const cardsWrap = document.createElement('div');
-    cardsWrap.className = 'method-category-cards';
-    cardsWrap.style.cssText = `
-      overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease;
-      max-height: ${collapsed ? '0px' : '5000px'};
-      opacity: ${collapsed ? '0' : '1'};
-    `.replace(/\n/g, '');
-
-    // Toggle handler
-    header.addEventListener('click', () => {
-      collapsed = !collapsed;
-      setCollapsed(cat.key, collapsed);
-      updateHeaderText(collapsed);
-      if (collapsed) {
-        cardsWrap.style.maxHeight = '0px';
-        cardsWrap.style.opacity = '0';
-      } else {
-        cardsWrap.style.maxHeight = '5000px';
-        cardsWrap.style.opacity = '1';
+  for (const method of methods) {
+    if (!firstMethod) firstMethod = method;
+    const card = document.createElement('div');
+    card.className = 'method-card';
+    card.dataset.id = method.id;
+    card.innerHTML = `
+      <div class="method-card-name">${method.name}</div>
+      <div class="method-card-desc">${method.description}</div>
+      <div class="method-card-params" id="params-${method.id}" style="display:none; padding-top: 10px; padding-bottom: 5px; cursor: default;"></div>
+    `;
+    card.addEventListener('click', (e) => {
+      if (!e.target.closest('.method-card-params')) {
+        switchMethod(method.id);
       }
     });
-
-    // Method cards inside collapsible container
-    for (const method of list) {
-      if (!firstMethod) firstMethod = method;
-      const card = document.createElement('div');
-      card.className = 'method-card';
-      card.dataset.id = method.id;
-      card.innerHTML = `
-        <div class="method-card-name">${method.name}</div>
-        <div class="method-card-desc">${method.description}</div>
-        <div class="method-card-params" id="params-${method.id}" style="display:none; padding-top: 10px; padding-bottom: 5px; cursor: default;"></div>
-      `;
-      // Prevent clicking params from switching methods repeatedly
-      card.addEventListener('click', (e) => {
-        if (!e.target.closest('.method-card-params')) {
-          switchMethod(method.id);
-        }
-      });
-      cardsWrap.appendChild(card);
-    }
-    container.appendChild(cardsWrap);
+    container.appendChild(card);
   }
   
   let selectedId = firstMethod ? firstMethod.id : null;
   const savedMethodId = localStorage.getItem('eros-last-method');
-  if (savedMethodId && MethodRegistry.get(savedMethodId)?.type === methodTypeFilter) {
+  if (savedMethodId && MethodRegistry.get(savedMethodId)) {
     selectedId = savedMethodId;
   }
   
   if (selectedId) {
-    // Prevent redundant reload on mount if already active
     if (state.methodId !== selectedId) {
       switchMethod(selectedId);
     }
@@ -975,7 +792,6 @@ function doRender() {
       info.textContent = 'Render Error — check console';
     } finally {
       renderPending = false;
-      try { updateConcept(); } catch (e) { console.warn('Concept tab update failed:', e); }
     }
   });
 }
@@ -1268,39 +1084,12 @@ function medianCut(pixels, depth) {
   return [...medianCut(pixels.slice(0, mid), depth - 1), ...medianCut(pixels.slice(mid), depth - 1)].slice(0, 6);
 }
 
-// ── Concept tab ───────────────────────────────────────────────
-function updateConcept() {
-  const method = ErosEngine.activeMethod;
-  if (!method) return;
-  const pal = state.palette;
-  const p = state.params;
 
-  document.getElementById('concept-narrative').textContent = method.narrative(p);
-  document.getElementById('concept-equation').textContent = method.equation(p);
-
-  document.getElementById('concept-params').textContent = JSON.stringify({
-    method: method.id,
-    ...p,
-    palette: pal.name,
-  }, null, 2);
-
-  document.getElementById('concept-meta').innerHTML = `
-    <div class="meta-item"><span class="meta-label">Engine</span><span class="meta-value">Eros v4 — ${method.name}</span></div>
-    <div class="meta-item"><span class="meta-label">Method</span><span class="meta-value">${method.id} v${method.version}</span></div>
-    <div class="meta-item"><span class="meta-label">Palette</span><span class="meta-value">${pal.name} (${pal.colors.length} hues)</span></div>
-    ${method.params.filter(pd => pd.key !== 'seed').map(pd =>
-      `<div class="meta-item"><span class="meta-label">${pd.label}</span><span class="meta-value">${formatParamValue(pd, p[pd.key])}</span></div>`
-    ).join('')}
-    <div class="meta-item"><span class="meta-label">Timestamp</span><span class="meta-value">${new Date().toISOString()}</span></div>
-  `;
-}
 
 // ── Gallery ───────────────────────────────────────────────────
 function saveToGallery() {
   const method = ErosEngine.activeMethod;
-  const canvas = method && method.type === '3d' 
-    ? document.getElementById('eros-canvas-3d') 
-    : document.getElementById('eros-canvas');
+  const canvas = document.getElementById('eros-canvas');
   
   // Create a high-res thumbnail to match new larger cards
   const thumbSize = 400; // Halved from 800 to prevent localstorage quota errors

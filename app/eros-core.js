@@ -18,42 +18,6 @@ class PRNG {
   hash(x) { let h = (x * 2654435761) >>> 0; h ^= h >> 16; h = (h * 2246822519) >>> 0; h ^= h >> 13; return h / 4294967295; }
 }
 
-// ── Simplex Noise 2D ──────────────────────────────────────────
-class SimplexNoise {
-  constructor(seed = 42) {
-    this.perm = new Uint8Array(512);
-    const p = new Uint8Array(256);
-    for (let i = 0; i < 256; i++) p[i] = i;
-    let s = seed | 0 || 1;
-    for (let i = 255; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [p[i], p[j]] = [p[j], p[i]]; }
-    for (let i = 0; i < 512; i++) this.perm[i] = p[i & 255];
-  }
-  noise2(x, y) {
-    const F2 = 0.5 * (Math.sqrt(3.0) - 1.0), G2 = (3.0 - Math.sqrt(3.0)) / 6.0;
-    const grad = [[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
-    const s = (x + y) * F2, i = Math.floor(x + s), j = Math.floor(y + s);
-    const t = (i + j) * G2, x0 = x - (i - t), y0 = y - (j - t);
-    const i1 = x0 > y0 ? 1 : 0, j1 = x0 > y0 ? 0 : 1;
-    const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2, x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
-    const ii = i & 255, jj = j & 255;
-    const gi0 = this.perm[ii + this.perm[jj]] % 8;
-    const gi1 = this.perm[ii + i1 + this.perm[jj + j1]] % 8;
-    const gi2 = this.perm[ii + 1 + this.perm[jj + 1]] % 8;
-    let n0 = 0, n1 = 0, n2 = 0;
-    let t0 = 0.5 - x0*x0 - y0*y0; if (t0 > 0) { t0 *= t0; n0 = t0*t0*(grad[gi0][0]*x0+grad[gi0][1]*y0); }
-    let t1 = 0.5 - x1*x1 - y1*y1; if (t1 > 0) { t1 *= t1; n1 = t1*t1*(grad[gi1][0]*x1+grad[gi1][1]*y1); }
-    let t2 = 0.5 - x2*x2 - y2*y2; if (t2 > 0) { t2 *= t2; n2 = t2*t2*(grad[gi2][0]*x2+grad[gi2][1]*y2); }
-    return 70 * (n0 + n1 + n2);
-  }
-  fbm(x, y, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
-    let val = 0, amp = 1, freq = 1, maxAmp = 0;
-    for (let i = 0; i < octaves; i++) {
-      val += this.noise2(x * freq, y * freq) * amp;
-      maxAmp += amp; amp *= persistence; freq *= lacunarity;
-    }
-    return val / maxAmp;
-  }
-}
 
 // ── HSL ↔ RGB ─────────────────────────────────────────────────
 function hsl2rgb(h, s, l) {
@@ -514,75 +478,13 @@ const MethodRegistry = {
 // ── Eros Engine (The Loom) ────────────────────────────────────
 const ErosEngine = {
   canvas: null, ctx: null, W: 0, H: 0,
-  canvas3D: null, renderer3D: null, scene3D: null, camera3D: null, controls3D: null,
-  perspCamera: null, orthoCamera: null,
-  composer: null, ssaoPass: null, hqRender: false,
   activeMethod: null,
 
-  init(canvas, canvas3D) {
+  init(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    
-    if (canvas3D && typeof THREE !== 'undefined') {
-      this.canvas3D = canvas3D;
-      this.renderer3D = new THREE.WebGLRenderer({ canvas: canvas3D, antialias: true, preserveDrawingBuffer: true, alpha: true });
-      this.renderer3D.setPixelRatio(window.devicePixelRatio);
-      this.renderer3D.shadowMap.enabled = true;
-      this.renderer3D.shadowMap.type = THREE.PCFSoftShadowMap;
-
-      this.scene3D = new THREE.Scene();
-      
-      // Studio Lighting Environment
-      if (typeof THREE.RoomEnvironment !== 'undefined') {
-        const pmremGenerator = new THREE.PMREMGenerator(this.renderer3D);
-        pmremGenerator.compileEquirectangularShader();
-        this.scene3D.environment = pmremGenerator.fromScene(new THREE.RoomEnvironment()).texture;
-      }
-      
-      this.renderer3D.outputEncoding = THREE.sRGBEncoding;
-      this.renderer3D.toneMapping = THREE.ACESFilmicToneMapping;
-      this.renderer3D.toneMappingExposure = 1.0;
-
-      const aspect = 1;
-      this.perspCamera = new THREE.PerspectiveCamera(45, aspect, 0.1, 10000);
-      
-      const frustumSize = 30; // Will be scaled dynamically by methods
-      this.orthoCamera = new THREE.OrthographicCamera(-frustumSize/2, frustumSize/2, frustumSize/2, -frustumSize/2, 0.1, 10000);
-      
-      this.camera3D = this.perspCamera; // default
-      
-      if (typeof THREE.OrbitControls !== 'undefined') {
-        this.controls3D = new THREE.OrbitControls(this.camera3D, this.renderer3D.domElement);
-        this.controls3D.enableDamping = true;
-        this.controls3D.addEventListener('change', () => {
-          if (this.activeMethod && this.activeMethod.type === '3d' && window.triggerRender) {
-            window.triggerRender();
-          }
-        });
-      }
-
-      // ── Post Processing Setup ──
-      if (typeof THREE.EffectComposer !== 'undefined') {
-        this.composer = new THREE.EffectComposer(this.renderer3D);
-        const renderPass = new THREE.RenderPass(this.scene3D, this.camera3D);
-        this.composer.addPass(renderPass);
-
-        this.ssaoPass = new THREE.SSAOPass(this.scene3D, this.camera3D, this.W, this.H);
-        this.ssaoPass.kernelRadius = 16;
-        this.ssaoPass.minDistance = 0.005;
-        this.ssaoPass.maxDistance = 0.1;
-        this.composer.addPass(this.ssaoPass);
-      }
-    }
-
     this.W = canvas.width = 1024;
     this.H = canvas.height = 1024;
-    if (this.canvas3D) {
-      this.canvas3D.width = this.W;
-      this.canvas3D.height = this.H;
-      this.renderer3D.setSize(this.W, this.H, false);
-      if (this.composer) this.composer.setSize(this.W, this.H);
-    }
   },
 
   loadMethod(methodId) {
@@ -597,20 +499,6 @@ const ErosEngine = {
     if (this.canvas) {
       this.canvas.width = this.W;
       this.canvas.height = this.H;
-    }
-    if (this.canvas3D) {
-      this.canvas3D.width = this.W;
-      this.canvas3D.height = this.H;
-      this.renderer3D.setSize(this.W, this.H, false);
-    }
-    
-    // Toggle canvas visibility based on type
-    if (this.activeMethod.type === '3d') {
-      if (this.canvas) this.canvas.style.display = 'none';
-      if (this.canvas3D) this.canvas3D.style.display = 'block';
-    } else {
-      if (this.canvas) this.canvas.style.display = 'block';
-      if (this.canvas3D) this.canvas3D.style.display = 'none';
     }
     
     return method;
@@ -628,42 +516,9 @@ const ErosEngine = {
   render(params, paletteColors) {
     if (!this.activeMethod) throw new Error('No method loaded');
     const t0 = performance.now();
-    let result = null;
-
-    if (this.activeMethod.type === '3d') {
-      
-      // Dual Camera Swap Logic
-      const isOrtho = params.cameraType === 'Orthographic';
-      this.camera3D = isOrtho ? this.orthoCamera : this.perspCamera;
-      
-      if (this.controls3D) {
-        this.controls3D.object = this.camera3D;
-      }
-
-      // Ensure post-processing knows the active camera
-      if (this.composer) {
-        this.composer.passes[0].camera = this.camera3D; // RenderPass
-        if (this.ssaoPass) this.ssaoPass.camera = this.camera3D;
-      }
-
-      result = this.activeMethod.render(
-        this.renderer3D, this.scene3D, this.camera3D, this.controls3D, 
-        this.W, this.H, params, paletteColors
-      );
-
-      // Execute HQ Render via Composer or Draft Render
-      if (this.hqRender && this.composer) {
-        this.composer.render();
-      } else {
-        this.renderer3D.render(this.scene3D, this.camera3D);
-      }
-      
-    } else {
-      result = this.activeMethod.render(
-        this.canvas, this.ctx, this.W, this.H, params, paletteColors
-      );
-    }
-
+    const result = this.activeMethod.render(
+      this.canvas, this.ctx, this.W, this.H, params, paletteColors
+    );
     const elapsed = performance.now() - t0;
     return { elapsed, ...(result || {}) };
   },
